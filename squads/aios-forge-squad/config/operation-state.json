@@ -1,0 +1,12 @@
+{
+  "activeOperations": [],
+  "lastUpdated": "2026-03-30T12:28:23.2882201-03:00",
+  "lastCompletedOperation": {
+    "operationId": "ops-2026-03-30-forge-health-bootstrap",
+    "operation": "self-update",
+    "status": "completed",
+    "startedAt": "2026-03-30T12:22:00.0000000-03:00",
+    "finishedAt": "2026-03-30T12:28:23.2882201-03:00",
+    "notes": "Bootstrap operacional: atualização de status do ecossistema, knowledge base e logs."
+  }
+}

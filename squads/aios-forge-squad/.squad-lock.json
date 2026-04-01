@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "squads": {
+    "aios-forge-squad": {
+      "source": "local",
+      "squad": "aios-forge-squad",
+      "version": "1.0.2",
+      "installedAt": "2026-03-31T00:00:00.000Z",
+      "agents": [
+        "aios-architect",
+        "aios-catalyst",
+        "aios-forge",
+        "aios-nexus",
+        "aios-oracle",
+        "aios-scout",
+        "aios-sentinel"
+      ]
+    }
+  }
+}

@@ -1,0 +1,49 @@
+name: "hope-saude-squad"
+version: "1.0.0"
+slashPrefix: "hss"
+author: "Forge <@forge>"
+minAiosVersion: "2.1.0"
+license: MIT
+
+description: >
+  Esquadrão especializado na criação e desenvolvimento de uma plataforma de atendimento 
+  online de psiquiatria. A plataforma contém funcionalidades de login com perfis RBAC 
+  (pacientes e médicos), agenda de disponibilidade médica, videochamadas integradas, 
+  pagamentos e extensibilidade para novos recursos de telessaúde.
+
+components:
+  agents:
+    - "oracle-coordinator.md"
+    - "tech-lead.md"
+    - "backend-dev.md"
+    - "frontend-dev.md"
+    - "qa-specialist.md"
+    - "product-owner.md"
+  tasks:
+    - "coordinate-demand.md"
+    - "plan-architecture.md"
+    - "implement-backend-core.md"
+    - "implement-frontend-core.md"
+    - "plan-test-strategy.md"
+    - "run-telemed-benchmark.md"
+  workflows:
+    - "platform-bootstrap.yaml"
+  checklists: []
+  templates:
+    - "logs/template.md"
+  tools: []
+  scripts: []
+
+config:
+  squad-log: SQUAD_LOG.md
+  logs-dir: logs/
+  coding-standards: config/coding-standards.md
+  tech-stack: config/tech-stack.md
+  source-tree: config/source-tree.md
+  generation:
+    constitutionVersion: "v1"
+
+tags:
+  - "telemedicina"
+  - "psiquiatria"
+  - "fullstack"

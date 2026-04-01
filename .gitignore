@@ -1,0 +1,28 @@
+node_modules
+
+# Env e segredos
+.env
+.env.*
+!.env.example
+
+# Build e cache
+apps/api/dist
+apps/web/.next
+apps/web/out
+*.tsbuildinfo
+
+# Banco local
+*.db
+apps/api/prisma/*.db
+apps/api/prisma/dev.db-journal
+
+# Testes e relatórios
+apps/web/test-results
+apps/web/playwright-report
+coverage
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea
+.vscode

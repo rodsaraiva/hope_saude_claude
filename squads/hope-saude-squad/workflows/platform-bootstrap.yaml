@@ -1,0 +1,35 @@
+workflow_name: "platform_bootstrap"
+description: "Fluxo sequencial de construção da plataforma de telepsiquiatria"
+version: "1.0.0"
+
+agent_sequence:
+  - agent: "tech-lead"
+    task: "plan-architecture.md"
+    condition: "always"
+    timeout: "20m"
+  - agent: "backend-dev"
+    task: "implement-backend-core.md"
+    condition: "on_success"
+    timeout: "60m"
+  - agent: "frontend-dev"
+    task: "implement-frontend-core.md"
+    condition: "on_success"
+    timeout: "60m"
+
+key_commands:
+  - "*plan-arch"
+  - "*code-backend"
+  - "*code-frontend"
+
+transitions:
+  - from: "plan-architecture.md"
+    to: "implement-backend-core.md"
+    condition: "on_success"
+  - from: "implement-backend-core.md"
+    to: "implement-frontend-core.md"
+    condition: "on_success"
+
+error_handling:
+  on_failure: "escalate"
+  max_retries: 2
+  escalation_target: "tech-lead"
