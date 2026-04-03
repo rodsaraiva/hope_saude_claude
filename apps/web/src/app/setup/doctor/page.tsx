@@ -5,6 +5,7 @@ import { useState } from 'react';
 export default function DoctorSetupPage() {
   const [specialty, setSpecialty] = useState('');
   const [crm, setCrm] = useState('');
+  const [bio, setBio] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
@@ -16,7 +17,7 @@ export default function DoctorSetupPage() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ specialty, crm }),
+      body: JSON.stringify({ specialty, crm, bio }),
     });
 
     if (res.ok) {
@@ -49,6 +50,12 @@ export default function DoctorSetupPage() {
           value={crm}
           onChange={(e) => setCrm(e.target.value)}
           className="w-full p-2 border rounded"
+        />
+        <textarea
+          placeholder="Conte um pouco sobre sua experiência (biografia)"
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          className="w-full p-2 border rounded min-h-[100px]"
         />
         <button
           type="button"

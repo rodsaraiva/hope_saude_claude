@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { AuthService } from './auth.service';
@@ -20,6 +29,17 @@ export class AuthController {
       throw new UnauthorizedException('Credenciais inválidas');
     }
     return this.authService.login(user);
+  }
+
+  /** Conta básica (nome, e-mail, papel) — não exige DoctorProfile/PatientProfile. */
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  async me(@Request() req: { user: { userId: number } }) {
+    const user = await this.authService.getPublicUserById(req.user.userId);
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    return user;
   }
 
   @Get('profile/doctor')

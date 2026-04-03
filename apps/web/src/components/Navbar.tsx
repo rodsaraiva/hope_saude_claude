@@ -53,11 +53,19 @@ export default function Navbar() {
         <nav className="flex items-center gap-3 sm:gap-4" aria-label="Principal">
           {isLoggedIn ? (
             <>
+              {userRole === 'PATIENT' && (
+                <Link
+                  href="/dashboard/patient/doctors"
+                  className="text-sm font-semibold text-sky-600 transition hover:text-sky-700"
+                >
+                  Agendar
+                </Link>
+              )}
               <Link
-                href={userRole === 'DOCTOR' ? '/dashboard/doctor' : '/dashboard/patient'}
+                href="/profile"
                 className="text-sm font-semibold text-sky-600 transition hover:text-sky-700"
               >
-                Meu Painel
+                Meu perfil
               </Link>
               <button
                 type="button"

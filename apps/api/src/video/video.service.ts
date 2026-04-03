@@ -1,25 +1,29 @@
 import { Injectable } from '@nestjs/common';
-import twilio from 'twilio';
+import { ConfigService } from '@nestjs/config';
+import { AccessToken } from 'livekit-server-sdk';
 
 @Injectable()
 export class VideoService {
+  constructor(private readonly config: ConfigService) {}
+
   async generateToken(roomName: string, identity: string) {
-    const AccessToken = twilio.jwt.AccessToken;
-    const VideoGrant = AccessToken.VideoGrant;
+    const apiKey = this.config.get<string>('LIVEKIT_API_KEY');
+    const apiSecret = this.config.get<string>('LIVEKIT_API_SECRET');
+    const livekitUrl =
+      this.config.get<string>('LIVEKIT_WS_URL') ?? 'ws://localhost:7880';
 
-    const token = new AccessToken(
-      'AC_MOCK_ACCOUNT_SID',
-      'SK_MOCK_API_KEY',
-      'MOCK_API_SECRET',
-      { identity }
-    );
+    if (!apiKey || !apiSecret) {
+      throw new Error('LIVEKIT_API_KEY e LIVEKIT_API_SECRET devem estar configurados');
+    }
 
-    const videoGrant = new VideoGrant({ room: roomName });
-    token.addGrant(videoGrant);
+    const at = new AccessToken(apiKey, apiSecret, { identity });
+    at.addGrant({ roomJoin: true, room: roomName });
+    const token = await at.toJwt();
 
     return {
-      token: token.toJwt(),
+      token,
       roomName,
+      livekitUrl,
     };
   }
 }

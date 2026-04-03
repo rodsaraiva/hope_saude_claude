@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Query, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Query,
+  Param,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ProfileService } from './profile.service';
 
@@ -10,6 +21,20 @@ export class ProfileController {
   @UseGuards(AuthGuard('jwt'))
   async listDoctors(@Query('specialty') specialty?: string) {
     return this.profileService.listDoctors(specialty);
+  }
+
+  @Get('doctors/:userId')
+  @UseGuards(AuthGuard('jwt'))
+  async getDoctorByUserId(@Param('userId') userIdParam: string) {
+    const userId = parseInt(userIdParam, 10);
+    if (Number.isNaN(userId)) {
+      throw new NotFoundException('Médico não encontrado');
+    }
+    const profile = await this.profileService.getDoctorProfileByUserId(userId);
+    if (!profile) {
+      throw new NotFoundException('Médico não encontrado');
+    }
+    return profile;
   }
 
   @Post('doctor/setup')
@@ -27,7 +52,7 @@ export class ProfileController {
     if (req.user?.role !== 'PATIENT') {
       throw new ForbiddenException('Apenas pacientes podem configurar perfil de paciente');
     }
-    return this.profileService.createPatientProfile(req.user.userId, data);
+    return this.profileService.upsertPatientProfile(req.user.userId, data);
   }
 
   @Get('me')

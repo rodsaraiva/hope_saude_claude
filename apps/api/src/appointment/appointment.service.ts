@@ -5,11 +5,43 @@ import { PrismaService } from '../prisma.service';
 export class AppointmentService {
   constructor(private prisma: PrismaService) {}
 
-  async createAppointment(data: { patientId: number; doctorId: number; date: Date }) {
+  async createPendingCheckout(data: {
+    patientId: number;
+    doctorId: number;
+    date: Date;
+    asaasPaymentId: string;
+  }) {
+    return this.prisma.pendingCheckout.create({ data });
+  }
+
+  async findPendingCheckouts() {
+    return this.prisma.pendingCheckout.findMany();
+  }
+
+  /** Confirma que o pagamento Asaas pertence ao paciente (ex.: buscar QR PIX). */
+  async findPendingCheckoutByPatientAndPayment(patientId: number, asaasPaymentId: string) {
+    return this.prisma.pendingCheckout.findFirst({
+      where: { patientId, asaasPaymentId },
+    });
+  }
+
+  async deletePendingCheckout(id: number) {
+    return this.prisma.pendingCheckout.delete({ where: { id } });
+  }
+
+  async createConfirmedAppointment(data: {
+    patientId: number;
+    doctorId: number;
+    date: Date;
+    paymentId: string;
+  }) {
     return this.prisma.appointment.create({
       data: {
-        ...data,
-        status: 'PENDING',
+        patientId: data.patientId,
+        doctorId: data.doctorId,
+        date: data.date,
+        status: 'CONFIRMED',
+        paymentId: data.paymentId,
       },
     });
   }

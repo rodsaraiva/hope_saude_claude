@@ -26,15 +26,19 @@ model DoctorProfile {
   user         User     @relation(fields: [userId], references: [id])
   specialty    String
   crm          String   @unique
+  bio          String?
   availability String?  // SQLite usa String para armazenar JSON serializado
 }
 
 model PatientProfile {
-  id           Int      @id @default(autoincrement())
-  userId       Int      @unique
-  user         User     @relation(fields: [userId], references: [id])
-  phone        String?
-  medicalHistory String?
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  user             User     @relation(fields: [userId], references: [id])
+  cpf              String?
+  phone            String?
+  medicalHistory   String?
+  /// Cliente Asaas vinculado ao salvar CPF/celular (acelera checkout PIX/cartão).
+  asaasCustomerId  String?
 }
 
 model Appointment {
@@ -46,4 +50,14 @@ model Appointment {
   paymentId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Pagamento Asaas iniciado antes da consulta existir no banco (checkout único).
+model PendingCheckout {
+  id             Int      @id @default(autoincrement())
+  patientId      Int
+  doctorId       Int
+  date           DateTime
+  asaasPaymentId String   @unique
+  createdAt      DateTime @default(now())
 }

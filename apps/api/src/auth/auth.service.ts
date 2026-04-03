@@ -16,6 +16,20 @@ export class AuthService {
     });
   }
 
+  /** Dados públicos do usuário (sem senha) — sempre que o JWT for válido. */
+  async getPublicUserById(id: number) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+  }
+
   async createUser(data: any) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const user = await this.prisma.user.create({

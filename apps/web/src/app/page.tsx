@@ -53,10 +53,10 @@ export default function Home() {
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4 md:justify-start">
               {isLoggedIn ? (
                 <Link
-                  href={userRole === 'DOCTOR' ? '/dashboard/doctor' : '/dashboard/patient'}
+                  href="/profile"
                   className="inline-flex items-center justify-center rounded-full bg-sky-600 px-6 py-3 text-base font-semibold text-white shadow-md shadow-sky-600/20 transition hover:bg-sky-700"
                 >
-                  Acessar meu painel de controle
+                  Acessar meu perfil
                 </Link>
               ) : (
                 <>

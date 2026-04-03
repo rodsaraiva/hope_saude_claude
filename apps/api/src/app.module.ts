@@ -1,4 +1,6 @@
 import { Module, MiddlewareConsumer } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
@@ -7,7 +9,15 @@ import { PaymentModule } from './payment/payment.module';
 import { VideoModule } from './video/video.module';
 
 @Module({
-  imports: [AuthModule, ProfileModule, AppointmentModule, PaymentModule, VideoModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
+    AuthModule, 
+    ProfileModule, 
+    AppointmentModule, 
+    PaymentModule, 
+    VideoModule
+  ],
   controllers: [AppController],
 })
 export class AppModule {

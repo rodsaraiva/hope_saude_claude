@@ -7,15 +7,6 @@ import { AppointmentService } from './appointment.service';
 export class AppointmentController {
   constructor(private appointmentService: AppointmentService) {}
 
-  @Post()
-  async create(@Request() req, @Body() body: any) {
-    return this.appointmentService.createAppointment({
-      patientId: req.user.userId,
-      doctorId: body.doctorId,
-      date: new Date(body.date),
-    });
-  }
-
   @Get('me')
   async getMyAppointments(@Request() req) {
     if (req.user.role === 'DOCTOR') {
