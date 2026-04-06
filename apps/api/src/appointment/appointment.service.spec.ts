@@ -13,7 +13,7 @@ describe('AppointmentService', () => {
         {
           provide: PrismaService,
           useValue: {
-            appointment: { create: jest.fn(), findMany: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
+            appointment: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
             pendingCheckout: { create: jest.fn(), findMany: jest.fn(), findFirst: jest.fn(), delete: jest.fn() },
           },
         },
@@ -50,6 +50,9 @@ describe('AppointmentService', () => {
         date: data.date,
         status: 'CONFIRMED',
         paymentId: 'pay_123',
+        consultationModelId: undefined,
+        durationMinutes: 60,
+        price: 150.0,
       },
     });
   });
@@ -73,11 +76,29 @@ describe('AppointmentService', () => {
     expect(prisma.pendingCheckout.delete).toHaveBeenCalledWith({ where: { id: 5 } });
   });
 
-  it('should update appointment status', async () => {
-    await service.updateStatus(1, 'CONFIRMED');
-    expect(prisma.appointment.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { status: 'CONFIRMED' },
+  it('should list appointments do médico no intervalo de datas', async () => {
+    const from = new Date('2026-04-01T00:00:00.000Z');
+    const to = new Date('2026-04-30T23:59:59.999Z');
+    await service.findAppointmentsForDoctorInRange(7, from, to);
+    expect(prisma.appointment.findMany).toHaveBeenCalledWith({
+      where: {
+        doctorId: 7,
+        date: { gte: from, lte: to },
+      },
+      orderBy: { date: 'asc' },
+    });
+  });
+
+  it('should list pending checkouts do médico no intervalo de datas', async () => {
+    const from = new Date('2026-04-01T00:00:00.000Z');
+    const to = new Date('2026-04-30T23:59:59.999Z');
+    await service.findPendingCheckoutsForDoctorInRange(7, from, to);
+    expect(prisma.pendingCheckout.findMany).toHaveBeenCalledWith({
+      where: {
+        doctorId: 7,
+        date: { gte: from, lte: to },
+      },
+      orderBy: { date: 'asc' },
     });
   });
 });

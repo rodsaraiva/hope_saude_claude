@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Hope Saúde - Fluxo Crítico', () => {
 
-  test('Fluxo completo: Registro -> Login -> Agenda -> Checkout PIX', async ({ page }) => {
+  test('Fluxo completo: Registro (sessão) -> Agenda -> Checkout PIX', async ({ page }) => {
     const ts = Date.now();
     const doctorName = `DrPW${ts}`;
     const doctorEmail = `doctor-${ts}@test.com`;
@@ -13,22 +13,17 @@ test.describe('Hope Saúde - Fluxo Crítico', () => {
       await page.waitForLoadState('networkidle');
     };
 
-    // ─── 1. Registro do Médico ───
+    // ─── 1. Registro do Médico (já autenticado) ───
     await page.goto('/register');
     await waitReady();
     await page.fill('input[placeholder="Nome Completo"]', doctorName);
     await page.fill('input[placeholder="E-mail"]', doctorEmail);
     await page.fill('input[placeholder="Senha"]', 'secret123');
     await page.click('label:has-text("Médico")');
-    await page.click('button:has-text("Cadastrar")');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-
-    // ─── 2. Login do Médico ───
-    await page.goto('/login');
-    await waitReady();
-    await page.fill('input[placeholder="E-mail"]', doctorEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await page.click('button:has-text("Entrar")');
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
+    ]);
     await page.waitForURL(/\/dashboard\/doctor/, { timeout: 15000 });
 
     // Médico novo: setup do perfil
@@ -59,22 +54,17 @@ test.describe('Hope Saúde - Fluxo Crítico', () => {
     });
     expect(doctorUserId).toBeTruthy();
 
-    // ─── 4. Registro do Paciente ───
+    // ─── 4. Registro do Paciente (já autenticado → Home) ───
     await page.goto('/register');
     await waitReady();
     await page.fill('input[placeholder="Nome Completo"]', 'Paciente Playwright');
     await page.fill('input[placeholder="E-mail"]', patientEmail);
     await page.fill('input[placeholder="Senha"]', 'secret123');
     await page.click('label:has-text("Paciente")');
-    await page.click('button:has-text("Cadastrar")');
-    await page.waitForURL(/\/login/, { timeout: 15000 });
-
-    // ─── 5. Login do Paciente → Home ───
-    await page.goto('/login');
-    await waitReady();
-    await page.fill('input[placeholder="E-mail"]', patientEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await page.click('button:has-text("Entrar")');
+    await Promise.all([
+      page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
+    ]);
     await page.waitForURL('http://localhost:3001/', { timeout: 15000 });
 
     await waitReady();
@@ -97,7 +87,7 @@ test.describe('Hope Saúde - Fluxo Crítico', () => {
       await route.continue(); // Deixa ir pro backend real
     });
 
-    // ─── 6. Paciente inicia checkout (consulta só existe após pagamento confirmado) ───
+    // ─── 5. Paciente inicia checkout (consulta só existe após pagamento confirmado) ───
     await waitReady();
     await page.goto(`/doctors/${doctorUserId}`);
     await page.waitForLoadState('domcontentloaded');

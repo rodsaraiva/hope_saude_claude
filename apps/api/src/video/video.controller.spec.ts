@@ -33,10 +33,13 @@ describe('VideoController', () => {
     appointmentService = module.get(AppointmentService);
   });
 
-  it('returns token payload when appointment is CONFIRMED', async () => {
+  it('returns token payload and appointment info when appointment is CONFIRMED', async () => {
     appointmentService.findById.mockResolvedValue({
       id: 1,
       status: 'CONFIRMED',
+      patientId: 10,
+      doctorId: 20,
+      patient: { name: 'Maria Silva' },
     } as any);
     videoService.generateToken.mockResolvedValue({
       token: 'jwt',
@@ -53,6 +56,12 @@ describe('VideoController', () => {
       token: 'jwt',
       roomName: 'room-1',
       livekitUrl: 'ws://localhost:7880',
+      appointment: {
+        id: 1,
+        patientId: 10,
+        doctorId: 20,
+        patientName: 'Maria Silva',
+      },
     });
   });
 

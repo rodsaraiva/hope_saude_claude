@@ -19,9 +19,19 @@ export class VideoController {
       throw new ForbiddenException('Consulta não confirmada ou inexistente');
     }
 
-    return this.videoService.generateToken(
+    const payload = await this.videoService.generateToken(
       `room-${appointmentId}`,
       req.user.email
     );
+
+    return {
+      ...payload,
+      appointment: {
+        id: appt.id,
+        patientId: appt.patientId,
+        doctorId: appt.doctorId,
+        patientName: (appt as any).patient?.name,
+      },
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Param, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AppointmentService } from './appointment.service';
 
@@ -13,13 +13,5 @@ export class AppointmentController {
       return this.appointmentService.getDoctorAppointments(req.user.userId);
     }
     return this.appointmentService.getPatientAppointments(req.user.userId);
-  }
-
-  @Post(':id/confirm')
-  async confirm(@Request() req, @Param('id') id: string) {
-    if (req.user?.role !== 'DOCTOR') {
-      throw new ForbiddenException('Apenas médicos podem confirmar consultas');
-    }
-    return this.appointmentService.updateStatus(Number(id), 'CONFIRMED');
   }
 }

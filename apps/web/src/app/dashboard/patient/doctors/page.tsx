@@ -14,6 +14,12 @@ type DoctorRow = {
   specialty: string;
   availability: string | null;
   user?: { name: string; email?: string };
+  consultationModels?: Array<{
+    id: number;
+    name: string;
+    durationMinutes: number;
+    price: number;
+  }>;
 };
 
 export default function PatientDoctorsListPage() {
@@ -25,11 +31,11 @@ export default function PatientDoctorsListPage() {
   const [selected, setSelected] = useState<DoctorRow | null>(null);
   const [bookMsg, setBookMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentContext, setPaymentContext] = useState<{ doctorUserId: number; dateIso: string } | null>(
+  const [paymentContext, setPaymentContext] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
     null,
   );
   const [setupModalOpen, setSetupModalOpen] = useState(false);
-  const [pendingBooking, setPendingBooking] = useState<{ doctorUserId: number; dateIso: string } | null>(
+  const [pendingBooking, setPendingBooking] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
     null,
   );
 
@@ -81,10 +87,10 @@ export default function PatientDoctorsListPage() {
     });
   }, [doctors, query, specialtyFilter]);
 
-  const handleBook = (doctorUserId: number, dateIso: string) => {
+  const handleBook = async (doctorUserId: number, dateIso: string, consultationModelId?: number) => {
     setBookMsg(null);
     setSelected(null);
-    setPaymentContext({ doctorUserId, dateIso });
+    setPaymentContext({ doctorUserId, dateIso, consultationModelId });
     setPaymentModalOpen(true);
   };
 
@@ -256,11 +262,13 @@ export default function PatientDoctorsListPage() {
           }}
           doctorUserId={paymentContext.doctorUserId}
           dateIso={paymentContext.dateIso}
+          consultationModelId={paymentContext.consultationModelId}
           onMissingProfile={() => {
             setPaymentModalOpen(false);
             setPendingBooking({
               doctorUserId: paymentContext.doctorUserId,
               dateIso: paymentContext.dateIso,
+              consultationModelId: paymentContext.consultationModelId,
             });
             setSetupModalOpen(true);
           }}

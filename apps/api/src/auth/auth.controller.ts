@@ -12,18 +12,20 @@ import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() createUserDto: any) {
-    return this.authService.createUser(createUserDto);
+  async register(@Body() createUserDto: RegisterDto) {
+    return this.authService.registerAndLogin(createUserDto);
   }
 
   @Post('login')
-  async login(@Body() body: any) {
+  async login(@Body() body: LoginDto) {
     const user = await this.authService.validateUser(body.email, body.password);
     if (!user) {
       throw new UnauthorizedException('Credenciais inválidas');

@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar, Clock, FileText, Hash, History, Mail, Phone, Stethoscope, User } from 'lucide-react';
+import { Calendar, Clock, FileText, Hash, History, Mail, Phone, Stethoscope, User, Search, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { splitAppointmentsByDate } from '@/lib/appointment-helpers';
+import { fetchMedicalRecords, fetchPrescriptions, type MedicalRecord, type Prescription, type Medication } from '@/lib/doctor-dashboard-api';
+import { format, parseISO } from 'date-fns';
+import ptBR from 'date-fns/locale/pt-BR';
 
 type AccountUser = {
   id: number;
@@ -35,7 +38,10 @@ export default function UserProfilePage() {
     Array<{ id: number; patientId: number; doctorId: number; date: string; status: string }>
   >([]);
   const [doctorNames, setDoctorNames] = useState<Record<number, string>>({});
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recordSearch, setRecordSearch] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -94,12 +100,31 @@ export default function UserProfilePage() {
           }
         }
         setDoctorNames(map);
+
+        // Buscar prontuários e receitas se for paciente
+        try {
+          const [records, presc] = await Promise.all([
+            fetchMedicalRecords(me.id),
+            fetchPrescriptions(me.id)
+          ]);
+          setMedicalRecords(records);
+          setPrescriptions(presc);
+        } catch (err) {
+          console.error('Erro ao carregar dados médicos:', err);
+        }
       }
 
       setLoading(false);
     };
     load();
   }, [router]);
+
+  // Efeito para busca de prontuários (paciente pode pesquisar nos seus próprios)
+  useEffect(() => {
+    if (account?.role === 'PATIENT' && account?.id) {
+      void fetchMedicalRecords(account.id, recordSearch).then(setMedicalRecords);
+    }
+  }, [recordSearch, account]);
 
   const { upcoming, history } = useMemo(
     () => splitAppointmentsByDate(appointments),
@@ -295,6 +320,146 @@ export default function UserProfilePage() {
                 )}
               </dl>
             </section>
+
+            {account.role === 'PATIENT' && (
+              <section
+                className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+                aria-labelledby="prontuario-heading"
+              >
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <h2 id="prontuario-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                    <FileText className="h-5 w-5 text-sky-600" aria-hidden />
+                    Meu Prontuário
+                  </h2>
+                  <div className="relative max-w-[200px]">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={recordSearch}
+                      onChange={(e) => setRecordSearch(e.target.value)}
+                      placeholder="Pesquisar..."
+                      className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-sky-500 focus:border-sky-500 placeholder:text-slate-400 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {medicalRecords.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
+                      <p className="text-sm text-slate-500">
+                        {recordSearch ? 'Nenhum resultado para sua busca.' : 'Nenhuma evolução registrada ainda.'}
+                      </p>
+                    </div>
+                  ) : (
+                    medicalRecords.map((record) => (
+                      <div key={record.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="text-xs font-bold text-slate-600">
+                              {format(parseISO(record.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            </span>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">
+                              Dr. {record.doctor?.name ?? 'Médico'}
+                            </span>
+                            {record.status === 'SIGNED' && (
+                              <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                <ShieldCheck className="h-2.5 w-2.5" />
+                                ASSINADO DIGITALMENTE
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="prose prose-sm prose-slate max-w-none text-slate-700" dangerouslySetInnerHTML={{ __html: record.content }} />
+                        {record.status === 'SIGNED' && record.signedHash && (
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[8px] font-mono text-slate-400">
+                            <span>Hash de Integridade: {record.signedHash}</span>
+                            <span>Assinado em: {format(parseISO(record.signatureDate!), "dd/MM/yyyy HH:mm")}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p className="mt-4 text-[10px] text-center text-slate-400 font-medium">
+                  Apenas você e os médicos com quem você tem consulta podem acessar estes registros.
+                </p>
+              </section>
+            )}
+
+            {account.role === 'PATIENT' && (
+              <section
+                className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+                aria-labelledby="receitas-heading"
+              >
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <h2 id="receitas-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                    <Pill className="h-5 w-5 text-emerald-600" aria-hidden />
+                    Minhas Receitas
+                  </h2>
+                </div>
+
+                <div className="space-y-4">
+                  {prescriptions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
+                      <p className="text-sm text-slate-500">Nenhuma receita encontrada.</p>
+                    </div>
+                  ) : (
+                    prescriptions.map((presc) => {
+                      const meds = JSON.parse(presc.medications) as Medication[];
+                      return (
+                        <div key={presc.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3.5 w-3.5 text-slate-400" />
+                              <span className="text-xs font-bold text-slate-600">
+                                {format(parseISO(presc.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                Dr. {doctorNames[presc.doctorId] ?? 'Médico'}
+                              </span>
+                              {presc.status === 'SIGNED' && (
+                                <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                                  <ShieldCheck className="h-2.5 w-2.5" />
+                                  ASSINADA DIGITALMENTE
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            {meds.map((m, idx) => (
+                              <div key={idx} className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm">
+                                <p className="text-sm font-bold text-slate-900">{m.name} - {m.dosage}</p>
+                                <p className="text-xs text-slate-600 mt-1">{m.frequency}</p>
+                                {m.instructions && (
+                                  <p className="text-[10px] text-slate-500 italic mt-1">Obs: {m.instructions}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          {presc.status === 'SIGNED' && presc.signedHash && (
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[8px] font-mono text-slate-400">
+                              <span>Hash de Verificação: {presc.signedHash}</span>
+                              <span>Data: {format(parseISO(presc.signatureDate!), "dd/MM/yyyy HH:mm")}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <button 
+                  className="w-full mt-4 py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:border-emerald-200 hover:text-emerald-500 transition-colors"
+                  onClick={() => window.print()}
+                >
+                  IMPRIMIR RECEITAS
+                </button>
+              </section>
+            )}
 
             {account.role === 'DOCTOR' && (
               <section

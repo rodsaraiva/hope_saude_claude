@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-
-function formatCpf(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}
+import { formatCpf, digitsOnlyCpf } from '@/lib/cpf-format';
+import { validatePatientCpfDigits, validatePatientPhone } from '@/lib/setup-validation';
+import { postPatientSetup } from '@/lib/profile-setup-api';
 
 export default function PatientSetupModal({ 
   onClose, 
@@ -23,34 +18,28 @@ export default function PatientSetupModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const rawCpf = cpf.replace(/\D/g, '');
-    if (rawCpf.length !== 11) {
-      setError('O CPF deve conter 11 dígitos.');
+    const rawCpf = digitsOnlyCpf(cpf);
+    const cpfErr = validatePatientCpfDigits(rawCpf);
+    if (cpfErr) {
+      setError(cpfErr);
+      return;
+    }
+    const phoneErr = validatePatientPhone(phone);
+    if (phoneErr) {
+      setError(phoneErr);
       return;
     }
 
     setLoading(true);
     setError(null);
-    const token = localStorage.getItem('token');
 
     try {
-      const res = await fetch('http://localhost:3000/profile/patient/setup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ cpf: rawCpf, phone }),
-      });
-
-      if (res.ok) {
-        onSuccess();
-      } else {
-        const data = await res.json().catch(() => null);
-        setError(data?.message || 'Erro ao salvar os dados.');
-      }
-    } catch (err) {
-      setError('Falha de conexão.');
+      await postPatientSetup({ cpf: rawCpf, phone: phone.trim() });
+      onSuccess();
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Erro ao salvar os dados.';
+      setError(msg === 'Erro na requisição' ? 'Falha de conexão.' : msg);
     } finally {
       setLoading(false);
     }
@@ -76,8 +65,11 @@ export default function PatientSetupModal({
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">CPF</label>
+              <label htmlFor="modal-patient-cpf" className="mb-1 block text-sm font-medium text-slate-700">
+                CPF
+              </label>
               <input
+                id="modal-patient-cpf"
                 type="text"
                 placeholder="000.000.000-00"
                 value={cpf}
@@ -89,8 +81,11 @@ export default function PatientSetupModal({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Celular</label>
+              <label htmlFor="modal-patient-phone" className="mb-1 block text-sm font-medium text-slate-700">
+                Celular
+              </label>
               <input
+                id="modal-patient-phone"
                 type="text"
                 placeholder="(00) 00000-0000"
                 value={phone}

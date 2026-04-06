@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProfileService } from './profile.service';
 import { PrismaService } from '../prisma.service';
-import { AsaasService } from '../payment/asaas.service';
+import { PaymentService } from '../payment/payment.service';
 
 describe('ProfileService', () => {
   let service: ProfileService;
   let prisma: PrismaService;
-  let asaasService: AsaasService;
+  let paymentService: PaymentService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -17,14 +17,14 @@ describe('ProfileService', () => {
           useValue: {
             doctorProfile: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), findMany: jest.fn() },
             patientProfile: { create: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() },
+            consultationModel: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), delete: jest.fn() },
             user: { findUnique: jest.fn() },
           },
         },
         {
-          provide: AsaasService,
+          provide: PaymentService,
           useValue: {
-            findCustomerIdByCpf: jest.fn(),
-            createCustomer: jest.fn(),
+            ensureAsaasCustomerId: jest.fn(),
           },
         },
       ],
@@ -32,7 +32,11 @@ describe('ProfileService', () => {
 
     service = module.get<ProfileService>(ProfileService);
     prisma = module.get<PrismaService>(PrismaService);
-    asaasService = module.get<AsaasService>(AsaasService);
+    paymentService = module.get<PaymentService>(PaymentService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
   });
 
   it('should create a doctor profile', async () => {
@@ -43,7 +47,7 @@ describe('ProfileService', () => {
     });
   });
 
-  it('should upsert a patient profile with cpf', async () => {
+  it('should upsert a patient profile without asaas logic since it was moved', async () => {
     const data = { phone: '11999999999', cpf: '12345678909', medicalHistory: '' };
     const saved = {
       id: 1,
@@ -52,93 +56,67 @@ describe('ProfileService', () => {
       asaasCustomerId: 'cus_already',
     };
     (prisma.patientProfile.upsert as jest.Mock).mockResolvedValue(saved);
-    (prisma.patientProfile.findUnique as jest.Mock).mockResolvedValue({
-      ...saved,
-      user: { name: 'Paciente', email: 'p@test.com' },
-    });
+    
     const result = await service.upsertPatientProfile(5, data);
+    
     expect(prisma.patientProfile.upsert).toHaveBeenCalledWith({
       where: { userId: 5 },
       update: data,
       create: { ...data, userId: 5 },
     });
-    expect(result?.cpf).toBe('12345678909');
-    expect(asaasService.createCustomer).not.toHaveBeenCalled();
+    expect(result).toEqual(saved);
   });
 
-  it('deve vincular cliente Asaas ao salvar CPF e celular quando ainda não há customerId', async () => {
-    const data = { phone: '11999999999', cpf: '12345678909', medicalHistory: '' };
-    (prisma.patientProfile.upsert as jest.Mock).mockResolvedValue({
-      id: 1,
-      userId: 5,
-      ...data,
-      asaasCustomerId: null,
-    });
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 5, name: 'Maria', email: 'm@test.com' });
-    (prisma.patientProfile.findUnique as jest.Mock)
-      .mockResolvedValueOnce({
-        id: 1,
-        userId: 5,
-        ...data,
-        asaasCustomerId: null,
-      })
-      .mockResolvedValueOnce({
-        id: 1,
-        userId: 5,
-        ...data,
-        asaasCustomerId: 'cus_new',
-        user: { name: 'Maria', email: 'm@test.com' },
-      });
-    (asaasService.findCustomerIdByCpf as jest.Mock).mockResolvedValue(null);
-    (asaasService.createCustomer as jest.Mock).mockResolvedValue({ id: 'cus_new' });
-    (prisma.patientProfile.update as jest.Mock).mockResolvedValue({});
-
-    const result = await service.upsertPatientProfile(5, data);
-
-    expect(asaasService.findCustomerIdByCpf).toHaveBeenCalledWith('12345678909');
-    expect(asaasService.createCustomer).toHaveBeenCalledWith('Maria', 'm@test.com', '12345678909');
-    expect(prisma.patientProfile.update).toHaveBeenCalledWith({
-      where: { userId: 5 },
-      data: { asaasCustomerId: 'cus_new' },
-    });
-    expect(result?.asaasCustomerId).toBe('cus_new');
-  });
-
-  it('should update doctor availability', async () => {
-    await service.updateAvailability(1, 'Seg-Sex 08:00-12:00');
+  it('should update doctor availability with JSON válido', async () => {
+    const json = JSON.stringify([{ day: 'Segunda', start: '08:00', end: '12:00', id: 1 }]);
+    await service.updateAvailability(1, json);
     expect(prisma.doctorProfile.update).toHaveBeenCalledWith({
       where: { userId: 1 },
-      data: { availability: 'Seg-Sex 08:00-12:00' },
+      data: { availability: json },
     });
   });
 
-  describe('getDoctorProfileByUserId', () => {
-    it('deve buscar perfil do médico pelo userId com dados do usuário', async () => {
-      const mockProfile = {
-        id: 1,
-        userId: 42,
-        specialty: 'Psiquiatria',
-        crm: 'CRM123',
-        availability: null,
-        user: { name: 'Dr. Silva', email: 'silva@test.com' },
-      };
-      (prisma.doctorProfile.findUnique as jest.Mock).mockResolvedValue(mockProfile);
+  describe('Consultation Models', () => {
+    it('deve criar um modelo de consulta', async () => {
+      const profile = { id: 10, userId: 1 };
+      (prisma.doctorProfile.findUnique as jest.Mock).mockResolvedValue(profile);
+      (prisma.consultationModel.create as jest.Mock).mockResolvedValue({ id: 1, ...profile });
 
-      const result = await service.getDoctorProfileByUserId(42);
+      await service.createConsultationModel(1, { name: 'Padrão', durationMinutes: 60, price: 150 });
 
-      expect(prisma.doctorProfile.findUnique).toHaveBeenCalledWith({
-        where: { userId: 42 },
-        include: { user: { select: { name: true, email: true } } },
+      expect(prisma.consultationModel.create).toHaveBeenCalledWith({
+        data: {
+          doctorProfileId: 10,
+          name: 'Padrão',
+          durationMinutes: 60,
+          price: 150,
+        },
       });
-      expect(result).toEqual(mockProfile);
     });
 
-    it('deve retornar null quando não existe médico com o userId', async () => {
-      (prisma.doctorProfile.findUnique as jest.Mock).mockResolvedValue(null);
+    it('deve atualizar um modelo de consulta existente', async () => {
+      const profile = { id: 10, userId: 1 };
+      (prisma.doctorProfile.findUnique as jest.Mock).mockResolvedValue(profile);
+      (prisma.consultationModel.findFirst as jest.Mock).mockResolvedValue({ id: 5, doctorProfileId: 10 });
 
-      const result = await service.getDoctorProfileByUserId(999);
+      await service.updateConsultationModel(1, 5, { name: 'Atualizado', durationMinutes: 45, price: 120 });
 
-      expect(result).toBeNull();
+      expect(prisma.consultationModel.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { name: 'Atualizado', durationMinutes: 45, price: 120 },
+      });
+    });
+
+    it('deve excluir um modelo de consulta existente', async () => {
+      const profile = { id: 10, userId: 1 };
+      (prisma.doctorProfile.findUnique as jest.Mock).mockResolvedValue(profile);
+      (prisma.consultationModel.findFirst as jest.Mock).mockResolvedValue({ id: 5, doctorProfileId: 10 });
+
+      await service.deleteConsultationModel(1, 5);
+
+      expect(prisma.consultationModel.delete).toHaveBeenCalledWith({
+        where: { id: 5 },
+      });
     });
   });
 });

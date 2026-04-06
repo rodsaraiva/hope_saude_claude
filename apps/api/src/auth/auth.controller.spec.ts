@@ -5,7 +5,9 @@ import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let authService: jest.Mocked<Pick<AuthService, 'createUser' | 'validateUser' | 'login' | 'getPublicUserById'>>;
+  let authService: jest.Mocked<
+    Pick<AuthService, 'registerAndLogin' | 'validateUser' | 'login' | 'getPublicUserById'>
+  >;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -14,7 +16,7 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: {
-            createUser: jest.fn(),
+            registerAndLogin: jest.fn(),
             validateUser: jest.fn(),
             login: jest.fn(),
             getPublicUserById: jest.fn(),
@@ -32,14 +34,14 @@ describe('AuthController', () => {
   });
 
   describe('register', () => {
-    it('should call authService.createUser with correct data', async () => {
-      const dto = { email: 'test@test.com', password: '123', name: 'Test', role: 'PATIENT' };
-      authService.createUser.mockResolvedValue({ id: 1, ...dto } as any);
+    it('should return access_token like login (cadastro com sessão)', async () => {
+      const dto = { email: 'test@test.com', password: '123456', name: 'Test', role: 'PATIENT' as const };
+      authService.registerAndLogin.mockResolvedValue({ access_token: 'jwt_token' });
 
       const result = await controller.register(dto);
-      
-      expect(authService.createUser).toHaveBeenCalledWith(dto);
-      expect(result).toEqual({ id: 1, ...dto });
+
+      expect(authService.registerAndLogin).toHaveBeenCalledWith(dto);
+      expect(result).toEqual({ access_token: 'jwt_token' });
     });
   });
 

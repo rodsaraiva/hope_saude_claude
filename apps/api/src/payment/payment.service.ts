@@ -1,0 +1,218 @@
+import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
+import { AsaasService } from './asaas.service';
+import { AppointmentService } from '../appointment/appointment.service';
+import { ProfileService } from '../profile/profile.service';
+import { CheckoutDto } from './dto/checkout.dto';
+
+@Injectable()
+export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
+  constructor(
+    private asaasService: AsaasService,
+    private appointmentService: AppointmentService,
+    @Inject(forwardRef(() => ProfileService))
+    private profileService: ProfileService,
+  ) {}
+
+  /**
+   * Garante ID do cliente Asaas (cria ou reutiliza por CPF).
+   */
+  async ensureAsaasCustomerId(
+    userId: number,
+    name: string,
+    email: string,
+    cpf: string,
+  ): Promise<string> {
+    const profile = await this.profileService.getPatientProfile(userId);
+    if (!profile) {
+      throw new Error('Perfil de paciente não encontrado');
+    }
+    if (profile.asaasCustomerId) {
+      return profile.asaasCustomerId;
+    }
+
+    const cpfDigits = cpf.replace(/\D/g, '');
+    let customerId = await this.asaasService.findCustomerIdByCpf(cpfDigits);
+    if (!customerId) {
+      const created = await this.asaasService.createCustomer(name, email, cpf);
+      customerId = created.id;
+    }
+
+    await this.profileService.updateAsaasCustomerId(userId, customerId);
+
+    return customerId;
+  }
+
+  async processCheckout(user: any, body: CheckoutDto) {
+    if (body?.doctorId == null || body?.date == null || body.date === '') {
+      throw new BadRequestException('doctorId e date são obrigatórios');
+    }
+
+    let value = 150;
+    let durationMinutes = 60;
+    
+    if (body.consultationModelId) {
+      const doctorProfile = await this.profileService.getDoctorProfileByUserId(body.doctorId);
+      const model = doctorProfile?.consultationModels?.find((m) => m.id === body.consultationModelId);
+      if (model) {
+        value = model.price;
+        durationMinutes = model.durationMinutes;
+      }
+    }
+
+    const patientName = user.name || 'Paciente Anonimo';
+    const patientEmail = user.email;
+
+    const patientProfile = await this.profileService.getPatientProfile(user.userId);
+    const cpf = patientProfile?.cpf ?? undefined;
+
+    if (!cpf) {
+      throw new BadRequestException({
+        code: 'MISSING_PATIENT_PROFILE',
+        message: 'É necessário completar seu cadastro (CPF e Celular) para realizar pagamentos.',
+      });
+    }
+
+    const customerId = await this.ensureAsaasCustomerId(
+      user.userId,
+      patientName,
+      patientEmail,
+      cpf,
+    );
+
+    const description = `Consulta Psiquiátrica — pagamento (Dr. user ${body.doctorId})`;
+    const paymentMethod = body.paymentMethod === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX';
+
+    if (paymentMethod === 'CREDIT_CARD') {
+      const cc = body.creditCard;
+      const hi = body.creditCardHolderInfo;
+      if (
+        !cc?.holderName?.trim() ||
+        !cc?.number?.trim() ||
+        !cc?.expiryMonth?.trim() ||
+        !cc?.expiryYear?.trim() ||
+        !cc?.ccv?.trim()
+      ) {
+        throw new BadRequestException('Dados do cartão incompletos');
+      }
+      if (!hi?.postalCode?.trim() || !hi?.addressNumber?.trim()) {
+        throw new BadRequestException('CEP e número do endereço são obrigatórios para pagamento com cartão');
+      }
+
+      const digits = cc.number.replace(/\D/g, '');
+      let expYear = cc.expiryYear.replace(/\D/g, '');
+      if (expYear.length === 2) expYear = `20${expYear}`;
+
+      const payment = await this.asaasService.createPayment(
+        customerId,
+        value,
+        'CREDIT_CARD',
+        description,
+        {
+          creditCard: {
+            holderName: cc.holderName.trim(),
+            number: digits,
+            expiryMonth: cc.expiryMonth.replace(/\D/g, '').padStart(2, '0'),
+            expiryYear: expYear,
+            ccv: cc.ccv.replace(/\D/g, ''),
+          },
+          creditCardHolderInfo: {
+            name: patientName,
+            email: patientEmail,
+            cpfCnpj: cpf,
+            postalCode: hi.postalCode.replace(/\D/g, ''),
+            addressNumber: hi.addressNumber.trim(),
+            phone: hi.phone?.replace(/\D/g, '') || patientProfile?.phone?.replace(/\D/g, '') || undefined,
+            mobilePhone: hi.mobilePhone?.replace(/\D/g, '') || patientProfile?.phone?.replace(/\D/g, '') || undefined,
+          },
+        },
+      );
+
+      await this.appointmentService.createPendingCheckout({
+        patientId: user.userId,
+        doctorId: Number(body.doctorId),
+        date: new Date(body.date),
+        asaasPaymentId: payment.id,
+        consultationModelId: body.consultationModelId,
+        durationMinutes,
+        price: value,
+      });
+
+      return {
+        paymentId: payment.id,
+        invoiceUrl: payment.invoiceUrl,
+        paymentMethod: 'CREDIT_CARD' as const,
+        paymentStatus: (payment as { status?: string }).status ?? 'CONFIRMED',
+      };
+    }
+
+    const payment = await this.asaasService.createPayment(customerId, value, 'PIX', description);
+
+    await this.appointmentService.createPendingCheckout({
+      patientId: user.userId,
+      doctorId: Number(body.doctorId),
+      date: new Date(body.date),
+      asaasPaymentId: payment.id,
+      consultationModelId: body.consultationModelId,
+      durationMinutes,
+      price: value,
+    });
+
+    return {
+      paymentId: payment.id,
+      invoiceUrl: payment.invoiceUrl,
+      paymentMethod: 'PIX' as const,
+      value,
+      pixQrPending: true as const,
+    };
+  }
+
+  async getPixQrData(userId: number, paymentId: string) {
+    if (!paymentId?.trim()) {
+      throw new BadRequestException('paymentId obrigatório');
+    }
+    const pending = await this.appointmentService.findPendingCheckoutByPatientAndPayment(
+      userId,
+      paymentId,
+    );
+    if (!pending) {
+      throw new NotFoundException('Cobrança não encontrada ou sem permissão');
+    }
+    const pix = await this.asaasService.getPixQrCode(paymentId);
+    return {
+      pixQrCode: pix.encodedImage,
+      pixCode: pix.payload,
+      pixExpiresAt: pix.expirationDate,
+    };
+  }
+
+  /** Força confirmação do pagamento em Sandbox/Mocks para agilizar testes. */
+  async confirmPayment(userId: number, paymentId: string) {
+    const pending = await this.appointmentService.findPendingCheckoutByPatientAndPayment(userId, paymentId);
+    if (!pending) {
+      throw new NotFoundException('Cobrança não encontrada ou sem permissão');
+    }
+
+    // Tenta marcar como recebido no Asaas (apenas sandbox)
+    try {
+      await this.asaasService.receiveInSandbox(paymentId);
+    } catch (err) {
+      this.logger.warn(`ConfirmPayment: Asaas Sandbox falhou (talvez já recebido?), prosseguindo manual. ID ${paymentId}`);
+    }
+
+    // Cria consulta e remove pendência (mesma lógica do cron)
+    await this.appointmentService.createConfirmedAppointment({
+      patientId: pending.patientId,
+      doctorId: pending.doctorId,
+      date: pending.date,
+      paymentId: pending.asaasPaymentId,
+      consultationModelId: pending.consultationModelId || undefined,
+      durationMinutes: pending.durationMinutes,
+      price: pending.price,
+    });
+    await this.appointmentService.deletePendingCheckout(pending.id);
+
+    return { success: true };
+  }
+}

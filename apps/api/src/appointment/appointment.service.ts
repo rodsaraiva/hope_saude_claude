@@ -10,6 +10,9 @@ export class AppointmentService {
     doctorId: number;
     date: Date;
     asaasPaymentId: string;
+    consultationModelId?: number;
+    durationMinutes?: number;
+    price?: number;
   }) {
     return this.prisma.pendingCheckout.create({ data });
   }
@@ -34,6 +37,9 @@ export class AppointmentService {
     doctorId: number;
     date: Date;
     paymentId: string;
+    consultationModelId?: number;
+    durationMinutes?: number;
+    price?: number;
   }) {
     return this.prisma.appointment.create({
       data: {
@@ -42,6 +48,9 @@ export class AppointmentService {
         date: data.date,
         status: 'CONFIRMED',
         paymentId: data.paymentId,
+        consultationModelId: data.consultationModelId,
+        durationMinutes: data.durationMinutes ?? 60,
+        price: data.price ?? 150.0,
       },
     });
   }
@@ -56,18 +65,54 @@ export class AppointmentService {
   async getDoctorAppointments(doctorId: number) {
     return this.prisma.appointment.findMany({
       where: { doctorId },
+      include: {
+        patient: {
+          select: {
+            name: true,
+          },
+        },
+      },
       orderBy: { date: 'asc' },
     });
   }
 
-  async updateStatus(id: number, status: string) {
-    return this.prisma.appointment.update({
+  async findById(id: number) {
+    return this.prisma.appointment.findUnique({
       where: { id },
-      data: { status },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
   }
 
-  async findById(id: number) {
-    return this.prisma.appointment.findUnique({ where: { id } });
+  async findAppointmentsForDoctorInRange(doctorId: number, from: Date, to: Date) {
+    return this.prisma.appointment.findMany({
+      where: {
+        doctorId,
+        date: { gte: from, lte: to },
+      },
+      orderBy: { date: 'asc' },
+    });
+  }
+
+  async findPendingCheckoutsForDoctorInRange(doctorId: number, from: Date, to: Date) {
+    return this.prisma.pendingCheckout.findMany({
+      where: {
+        doctorId,
+        date: { gte: from, lte: to },
+      },
+      orderBy: { date: 'asc' },
+    });
   }
 }

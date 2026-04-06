@@ -33,6 +33,9 @@ export class PaymentCronService {
             doctorId: row.doctorId,
             date: row.date,
             paymentId: row.asaasPaymentId,
+            consultationModelId: row.consultationModelId || undefined,
+            durationMinutes: row.durationMinutes,
+            price: row.price,
           });
           await this.appointmentService.deletePendingCheckout(row.id);
           this.logger.log(`Consulta criada e confirmada após pagamento (checkout ${row.id})`);

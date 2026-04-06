@@ -1,11 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
 import { AppointmentController } from './appointment.controller';
 import { AppointmentService } from './appointment.service';
 
 describe('AppointmentController', () => {
   let controller: AppointmentController;
-  let appointmentService: jest.Mocked<Pick<AppointmentService, 'getDoctorAppointments' | 'getPatientAppointments' | 'updateStatus'>>;
+  let appointmentService: jest.Mocked<Pick<AppointmentService, 'getDoctorAppointments' | 'getPatientAppointments'>>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -16,7 +15,6 @@ describe('AppointmentController', () => {
           useValue: {
             getDoctorAppointments: jest.fn(),
             getPatientAppointments: jest.fn(),
-            updateStatus: jest.fn(),
           },
         },
       ],
@@ -51,26 +49,6 @@ describe('AppointmentController', () => {
       expect(appointmentService.getPatientAppointments).toHaveBeenCalledWith(20);
       expect(appointmentService.getDoctorAppointments).not.toHaveBeenCalled();
       expect(result).toEqual(mockAppointments);
-    });
-  });
-
-  describe('confirm', () => {
-    it('should call updateStatus if user is DOCTOR', async () => {
-      const updated = { id: 5, status: 'CONFIRMED' };
-      appointmentService.updateStatus.mockResolvedValue(updated as any);
-
-      const result = await controller.confirm({ user: { userId: 10, role: 'DOCTOR' } }, '5');
-      
-      expect(appointmentService.updateStatus).toHaveBeenCalledWith(5, 'CONFIRMED');
-      expect(result).toEqual(updated);
-    });
-
-    it('should throw ForbiddenException if user is not DOCTOR', async () => {
-      await expect(
-        controller.confirm({ user: { userId: 20, role: 'PATIENT' } }, '5')
-      ).rejects.toThrow(ForbiddenException);
-
-      expect(appointmentService.updateStatus).not.toHaveBeenCalled();
     });
   });
 });

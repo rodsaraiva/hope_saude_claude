@@ -17,6 +17,12 @@ type DoctorRow = {
   availability: string | null;
   bio?: string | null;
   user?: { name: string; email?: string };
+  consultationModels?: Array<{
+    id: number;
+    name: string;
+    durationMinutes: number;
+    price: number;
+  }>;
 };
 
 export default function PublicDoctorProfilePage() {
@@ -80,18 +86,18 @@ export default function PublicDoctorProfilePage() {
   }, [router, userIdParam]);
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentContext, setPaymentContext] = useState<{ doctorUserId: number; dateIso: string } | null>(
+  const [paymentContext, setPaymentContext] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
     null,
   );
   const [setupModalOpen, setSetupModalOpen] = useState(false);
-  const [pendingBooking, setPendingBooking] = useState<{ doctorUserId: number; dateIso: string } | null>(
+  const [pendingBooking, setPendingBooking] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
     null,
   );
 
-  const handleBook = (doctorUserId: number, dateIso: string) => {
+  const handleBook = async (doctorUserId: number, dateIso: string, consultationModelId?: number) => {
     setBookMsg(null);
     setModalOpen(false);
-    setPaymentContext({ doctorUserId, dateIso });
+    setPaymentContext({ doctorUserId, dateIso, consultationModelId });
     setPaymentModalOpen(true);
   };
 
@@ -297,11 +303,13 @@ export default function PublicDoctorProfilePage() {
           }}
           doctorUserId={paymentContext.doctorUserId}
           dateIso={paymentContext.dateIso}
+          consultationModelId={paymentContext.consultationModelId}
           onMissingProfile={() => {
             setPaymentModalOpen(false);
             setPendingBooking({
               doctorUserId: paymentContext.doctorUserId,
               dateIso: paymentContext.dateIso,
+              consultationModelId: paymentContext.consultationModelId,
             });
             setSetupModalOpen(true);
           }}

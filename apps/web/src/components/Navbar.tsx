@@ -61,6 +61,22 @@ export default function Navbar() {
                   Agendar
                 </Link>
               )}
+              {userRole === 'DOCTOR' && (
+                <>
+                  <Link
+                    href="/dashboard/doctor"
+                    className="text-sm font-semibold text-sky-600 transition hover:text-sky-700"
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/agenda"
+                    className="text-sm font-semibold text-sky-600 transition hover:text-sky-700"
+                  >
+                    Agenda
+                  </Link>
+                </>
+              )}
               <Link
                 href="/profile"
                 className="text-sm font-semibold text-sky-600 transition hover:text-sky-700"
@@ -80,7 +96,7 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="hidden text-sm font-medium text-slate-600 transition hover:text-sky-700 sm:inline"
+                className="text-sm font-semibold text-slate-600 transition hover:text-sky-700"
               >
                 Entrar
               </Link>

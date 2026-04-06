@@ -1,6 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { AsaasService } from '../payment/asaas.service';
+import { PaymentService } from '../payment/payment.service';
+import { SetupPatientDto } from './dto/setup-patient.dto';
+import {
+  assertValidDoctorAvailabilityJson,
+  InvalidAvailabilityPayloadError,
+} from '../availability/weekly-availability';
 
 @Injectable()
 export class ProfileService {
@@ -8,7 +13,8 @@ export class ProfileService {
 
   constructor(
     private prisma: PrismaService,
-    private asaasService: AsaasService,
+    @Inject(forwardRef(() => PaymentService))
+    private paymentService: PaymentService,
   ) {}
 
   async createDoctorProfile(userId: number, data: any) {
@@ -18,6 +24,30 @@ export class ProfileService {
         userId,
       },
     });
+  }
+
+  async setupPatientProfile(user: any, data: SetupPatientDto) {
+    const profile = await this.upsertPatientProfile(user.userId, data);
+
+    const cpf = profile.cpf?.trim();
+    const phone = profile.phone?.trim();
+    if (cpf && phone && !profile.asaasCustomerId) {
+      try {
+        await this.paymentService.ensureAsaasCustomerId(
+          user.userId,
+          user.name,
+          user.email,
+          cpf,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Asaas: cliente antecipado não vinculado (user ${user.userId})`,
+          err instanceof Error ? err.stack : err,
+        );
+      }
+    }
+
+    return this.getPatientProfile(user.userId);
   }
 
   async upsertPatientProfile(userId: number, data: any) {
@@ -30,62 +60,23 @@ export class ProfileService {
       },
     });
 
-    const cpf = profile.cpf?.trim();
-    const phone = profile.phone?.trim();
-    if (cpf && phone && !profile.asaasCustomerId) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (user) {
-        try {
-          await this.ensureAsaasCustomerId(userId, user.name, user.email, cpf);
-        } catch (err) {
-          this.logger.warn(
-            `Asaas: cliente antecipado não vinculado (user ${userId})`,
-            err instanceof Error ? err.stack : err,
-          );
-        }
-      }
-    }
-
-    return this.getPatientProfile(userId);
+    return profile;
   }
 
-  /**
-   * Garante ID do cliente Asaas no perfil (cria ou reutiliza por CPF).
-   * Usado no setup (CPF + celular) e no checkout se ainda não houver vínculo.
-   */
-  async ensureAsaasCustomerId(
-    userId: number,
-    name: string,
-    email: string,
-    cpf: string,
-  ): Promise<string> {
-    const profile = await this.prisma.patientProfile.findUnique({ where: { userId } });
-    if (!profile) {
-      throw new Error('Perfil de paciente não encontrado');
-    }
-    if (profile.asaasCustomerId) {
-      return profile.asaasCustomerId;
-    }
-
-    const cpfDigits = cpf.replace(/\D/g, '');
-    let customerId = await this.asaasService.findCustomerIdByCpf(cpfDigits);
-    if (!customerId) {
-      const created = await this.asaasService.createCustomer(name, email, cpf);
-      customerId = created.id;
-    }
-
-    await this.prisma.patientProfile.update({
+  async updateAsaasCustomerId(userId: number, asaasCustomerId: string) {
+    return this.prisma.patientProfile.update({
       where: { userId },
-      data: { asaasCustomerId: customerId },
+      data: { asaasCustomerId },
     });
-
-    return customerId;
   }
 
   async getDoctorProfile(userId: number) {
     return this.prisma.doctorProfile.findUnique({
       where: { userId },
-      include: { user: true },
+      include: { 
+        user: true,
+        consultationModels: true 
+      },
     });
   }
 
@@ -97,6 +88,14 @@ export class ProfileService {
   }
 
   async updateAvailability(userId: number, availability: string) {
+    try {
+      assertValidDoctorAvailabilityJson(availability);
+    } catch (e) {
+      if (e instanceof InvalidAvailabilityPayloadError) {
+        throw new BadRequestException(e.message);
+      }
+      throw e;
+    }
     return this.prisma.doctorProfile.update({
       where: { userId },
       data: { availability },
@@ -106,7 +105,10 @@ export class ProfileService {
   async listDoctors(specialty?: string) {
     return this.prisma.doctorProfile.findMany({
       where: specialty ? { specialty } : {},
-      include: { user: { select: { name: true, email: true } } },
+      include: {
+        user: { select: { name: true, email: true } },
+        consultationModels: true,
+      },
     });
   }
 
@@ -114,7 +116,60 @@ export class ProfileService {
   async getDoctorProfileByUserId(userId: number) {
     return this.prisma.doctorProfile.findUnique({
       where: { userId },
-      include: { user: { select: { name: true, email: true } } },
+      include: { 
+        user: { select: { name: true, email: true } },
+        consultationModels: true
+      },
+    });
+  }
+
+  async createConsultationModel(userId: number, data: { name: string; durationMinutes: number; price: number }) {
+    const profile = await this.getDoctorProfile(userId);
+    if (!profile) throw new BadRequestException('Perfil não encontrado');
+
+    return this.prisma.consultationModel.create({
+      data: {
+        doctorProfileId: profile.id,
+        name: data.name,
+        durationMinutes: data.durationMinutes,
+        price: data.price,
+      },
+    });
+  }
+
+  async updateConsultationModel(userId: number, modelId: number, data: { name: string; durationMinutes: number; price: number }) {
+    const profile = await this.getDoctorProfile(userId);
+    if (!profile) throw new BadRequestException('Perfil não encontrado');
+
+    // Verifica se o modelo pertence a este médico
+    const existing = await this.prisma.consultationModel.findFirst({
+      where: { id: modelId, doctorProfileId: profile.id }
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Modelo não encontrado ou não pertence a este médico');
+    }
+
+    return this.prisma.consultationModel.update({
+      where: { id: modelId },
+      data,
+    });
+  }
+
+  async deleteConsultationModel(userId: number, modelId: number) {
+    const profile = await this.getDoctorProfile(userId);
+    if (!profile) throw new BadRequestException('Perfil não encontrado');
+
+    const existing = await this.prisma.consultationModel.findFirst({
+      where: { id: modelId, doctorProfileId: profile.id }
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Modelo não encontrado ou não pertence a este médico');
+    }
+
+    return this.prisma.consultationModel.delete({
+      where: { id: modelId },
     });
   }
 }

@@ -1,291 +1,218 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Calendar, Clock, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import {
+  Calendar,
+  Clock,
+  Loader2,
+} from 'lucide-react';
+import Link from 'next/link';
+import {
+  getProfileMeSafe,
+  fetchAppointmentsMe,
+} from '@/lib/doctor-dashboard-api';
 
 export default function DoctorDashboard() {
-  const [profile, setProfile] = useState<any>(null);
-  const [availability, setAvailability] = useState<any[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Estados para novo slot
-  const [newDay, setNewDay] = useState('Segunda');
-  const [newStart, setNewStart] = useState('08:00');
-  const [newEnd, setNewEnd] = useState('09:00');
-
-  const daysOfWeek = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-  const timeSlots = Array.from({ length: 14 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
+  const [appointments, setAppointments] = useState<Array<Record<string, unknown>>>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const token = localStorage.getItem('token');
-      const profRes = await fetch('http://localhost:3000/profile/me', { headers: { Authorization: `Bearer ${token}` } });
+    let cancelled = false;
 
-      if (profRes.status === 404) {
-        window.location.href = '/setup/doctor';
-        return;
-      }
-
-      const apptRes = await fetch('http://localhost:3000/appointments/me', { headers: { Authorization: `Bearer ${token}` } });
-
-      const prof = await profRes.json();
-      const appts = await apptRes.json();
-      console.log('DEBUG: appointments received:', appts);
-      setProfile(prof);
-      setAppointments(Array.isArray(appts) ? appts : []);
-      
+    const load = async () => {
+      setLoadError(null);
       try {
-        setAvailability(JSON.parse(prof?.availability || '[]'));
-      } catch (e) {
-        setAvailability([]);
+        const profResult = await getProfileMeSafe() as any;
+        if (cancelled) return;
+        if (profResult.notFound) {
+          window.location.href = '/setup/doctor';
+          return;
+        }
+
+        const prof = profResult.profile as Record<string, unknown>;
+        setProfile(prof);
+
+        const apptsRaw = await fetchAppointmentsMe();
+        if (cancelled) return;
+        const appts = Array.isArray(apptsRaw) ? apptsRaw : [];
+        setAppointments(appts as Array<Record<string, unknown>>);
+      } catch {
+        if (!cancelled) {
+          setLoadError('Não foi possível carregar o painel. Verifique sua conexão e tente novamente.');
+        }
       }
     };
-    fetchData();
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleCellClick = (day: string, time: string) => {
-    setNewDay(day);
-    setNewStart(time);
-    // Define o fim para 1h depois por padrão
-    const [hours] = time.split(':');
-    const endHour = (parseInt(hours) + 1).toString().padStart(2, '0') + ':00';
-    setNewEnd(endHour);
-    setIsModalOpen(true);
-  };
+  const scheduled = useMemo(() => {
+    return [...appointments]
+      .filter((a) => a.status === 'CONFIRMED')
+      .sort((a, b) => new Date(String(a.date)).getTime() - new Date(String(b.date)).getTime());
+  }, [appointments]);
 
-  const addSlot = () => {
-    const updated = [...availability, { day: newDay, start: newStart, end: newEnd, id: Date.now() }];
-    setAvailability(updated);
-    saveAvailability(updated);
-    setIsModalOpen(false);
-  };
+  if (!profile && !loadError) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 bg-slate-50 px-4 text-slate-600">
+        <Loader2 className="h-10 w-10 animate-spin text-sky-600" aria-hidden />
+        <p className="text-sm font-medium">Carregando painel…</p>
+      </div>
+    );
+  }
 
-  const removeSlot = (id: number) => {
-    const updated = availability.filter(s => s.id !== id);
-    setAvailability(updated);
-    saveAvailability(updated);
-  };
+  if (loadError && !profile) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <p className="text-slate-800" role="alert">
+          {loadError}
+        </p>
+      </div>
+    );
+  }
 
-  const handleConfirm = async (id: number) => {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`http://localhost:3000/appointments/${id}/confirm`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      setAppointments(prev =>
-        Array.isArray(prev) ? prev.map(a => a.id === id ? { ...a, status: 'CONFIRMED' } : a) : []
-      );
-    }
-  };
-
-  const saveAvailability = async (data: any[]) => {
-    const token = localStorage.getItem('token');
-    await fetch('http://localhost:3000/profile/doctor/availability', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}` 
-      },
-      body: JSON.stringify({ availability: JSON.stringify(data) }),
-    });
-  };
-
-  if (!profile) return <div className="flex h-screen items-center justify-center">Carregando...</div>;
+  const userName =
+    (profile as { user?: { name?: string } })?.user?.name || 'Médico';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      {loadError ? (
+        <div
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          role="status"
+          aria-live="polite"
+        >
+          {loadError}
+        </div>
+      ) : null}
+
+      <div className="mx-auto max-w-7xl space-y-8">
+        <header className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Painel do Médico</h1>
-            <p className="text-slate-500">Bem-vindo, Dr. {profile?.user?.name || 'Médico'}</p>
-          </div>
-          <div className="flex gap-3">
-             {/* O botão foi removido para priorizar a interação direta na grade, estilo Google Calendar */}
+            <p className="text-sm font-medium text-sky-600">Área do especialista</p>
+            <h1 className="text-2xl font-bold text-slate-900">Painel do médico</h1>
+            <p className="mt-1 text-slate-600">Bem-vindo, Dr. {userName}</p>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Calendário de Disponibilidade */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-bold flex items-center gap-2 text-slate-800">
-                <Calendar size={20} className="text-blue-600" />
-                Sua Grade de Disponibilidade
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
+                <Calendar className="h-5 w-5 text-sky-600" aria-hidden />
+                Próximas Consultas
               </h2>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <div className="min-w-[600px] grid grid-cols-8 border-b border-gray-100 bg-gray-50">
-                <div className="p-4 border-r border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">Hora</div>
-                {daysOfWeek.map(day => (
-                  <div key={day} className="p-4 border-r border-gray-100 text-xs font-bold text-center text-slate-600 uppercase tracking-wider">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              
-              <div className="min-w-[600px] grid grid-cols-8 relative h-[600px] overflow-y-auto">
-                {/* Linhas de tempo */}
-                <div className="col-span-1 border-r border-gray-100">
-                  {timeSlots.map(time => (
-                    <div key={time} className="h-12 border-b border-gray-100 p-2 text-[10px] text-gray-400 text-right pr-4 font-medium">
-                      {time}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Colunas de dias com slots */}
-                {daysOfWeek.map(day => (
-                  <div key={day} className="col-span-1 border-r border-gray-100 relative group">
-                    {timeSlots.map(time => (
-                      <div 
-                        key={time} 
-                        onClick={() => handleCellClick(day, time)}
-                        className="h-12 border-b border-gray-50 group-hover:bg-blue-50/20 cursor-pointer transition-colors" 
-                      />
-                    ))}
-                    
-                    {/* Renderiza os slots salvos */}
-                    {availability.filter(s => s.day === day).map(slot => {
-                      const startIdx = timeSlots.findIndex(t => t === slot.start);
-                      const top = startIdx !== -1 ? startIdx * 48 : 0;
-                      return (
-                        <div 
-                          key={slot.id}
-                          className="absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-600 p-2 rounded shadow-sm group/slot cursor-default overflow-hidden"
-                          style={{ top: `${top}px`, height: '44px' }}
-                        >
-                          <div className="flex justify-between items-start">
-                            <p className="text-[10px] font-bold text-blue-800 leading-tight">Disponível</p>
-                            <button onClick={() => removeSlot(slot.id)} className="opacity-0 group-hover/slot:opacity-100 text-blue-800 hover:text-red-600 transition">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                          <p className="text-[10px] text-blue-700">{slot.start} - {slot.end}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar de Consultas */}
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800">
-                <Clock size={20} className="text-green-600" />
-                Ações Pendentes
-              </h2>
-              <div className="space-y-4">
-                {(Array.isArray(appointments) ? appointments : []).filter(a => a.status === 'PENDING').map((appt) => (
-                  <div key={appt.id} className="p-4 bg-orange-50 border border-orange-100 rounded-xl space-y-3">
-                    <div className="flex justify-between items-start">
-                      <p className="text-sm font-bold text-orange-900">{new Date(appt.date).toLocaleString()}</p>
-                      <span className="text-[10px] bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full font-bold">AGUARDANDO</span>
-                    </div>
-                    <button 
-                      onClick={() => handleConfirm(appt.id)}
-                      className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition shadow-sm"
+              <div className="grid gap-4 sm:grid-cols-2">
+                {scheduled.length > 0 ? (
+                  scheduled.slice(0, 4).map((appt) => (
+                    <div
+                      key={appt.id as number}
+                      className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-slate-50"
                     >
-                      Confirmar Consulta
-                    </button>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                          Confirmada
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-400">
+                          ID: #{appt.id as number}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-900">
+                        {new Date(String(appt.date)).toLocaleDateString('pt-BR', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                        })}
+                      </p>
+                      <p className="text-xs font-medium text-slate-600">
+                        Horário: {new Date(String(appt.date)).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                      <div className="mt-4">
+                        <a
+                          href={`/video/${appt.id as number}`}
+                          className="inline-flex w-full items-center justify-center rounded-lg bg-sky-600 py-2 text-xs font-bold text-white transition hover:bg-sky-700"
+                        >
+                          Entrar na Chamada
+                        </a>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="sm:col-span-2 py-12 text-center">
+                    <p className="text-sm italic text-slate-500">Nenhuma consulta agendada para os próximos dias.</p>
                   </div>
-                ))}
-                {appointments.filter(a => a.status === 'PENDING').length === 0 && (
-                  <p className="text-sm text-gray-400 text-center py-4 italic border-2 border-dashed border-gray-100 rounded-xl">
-                    Nenhuma consulta aguardando aprovação.
-                  </p>
                 )}
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-lg font-bold mb-4 text-slate-800">Próximas Consultas</h2>
-              <div className="space-y-3">
-                {(Array.isArray(appointments) ? appointments : []).filter(a => a.status === 'CONFIRMED').map((appt) => (
-                  <div key={appt.id} className="p-4 border border-gray-100 rounded-xl flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{new Date(appt.date).toLocaleString()}</p>
-                      <p className="text-xs text-green-600 font-medium italic">Confirmada</p>
-                    </div>
-                    <a 
-                      href={`/video/${appt.id}`}
-                      className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-600 hover:text-white transition"
-                    >
-                      Vídeo
-                    </a>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Resumo da Semana</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">Consultas realizadas</span>
+                    <span className="font-bold text-slate-900">0</span>
                   </div>
-                ))}
-                {appointments.filter(a => a.status === 'CONFIRMED').length === 0 && (
-                  <p className="text-sm text-gray-400 italic">Nenhum horário confirmado.</p>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">Agendamentos para hoje</span>
+                    <span className="font-bold text-slate-900">
+                      {scheduled.filter(a => {
+                        const d = new Date(String(a.date));
+                        const today = new Date();
+                        return d.getDate() === today.getDate() && d.getMonth() === today.getMonth();
+                      }).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Configurações Rápidas</h3>
+                <Link 
+                  href="/agenda"
+                  className="w-full text-left text-sm text-sky-600 hover:text-sky-700 font-medium"
+                >
+                  Gerenciar horários disponíveis →
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-800">
+                <Clock className="h-5 w-5 text-emerald-600" aria-hidden />
+                Histórico Recente
+              </h2>
+              <div className="space-y-3">
+                {scheduled.length > 4 ? (
+                  scheduled.slice(4, 10).map((appt) => (
+                    <div
+                      key={appt.id as number}
+                      className="flex items-center justify-between rounded-xl border border-slate-100 p-3"
+                    >
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">
+                          {new Date(String(appt.date)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Finalizada</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs italic text-slate-500">Sem histórico adicional.</p>
                 )}
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Modal para Novo Slot */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
-            <h3 className="text-xl font-bold text-slate-900 mb-6">Definir Disponibilidade</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Dia da Semana</label>
-                <select 
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
-                  value={newDay}
-                  onChange={(e) => setNewDay(e.target.value)}
-                >
-                  {daysOfWeek.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Hora Início</label>
-                  <select 
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
-                    value={newStart}
-                    onChange={(e) => setNewStart(e.target.value)}
-                  >
-                    {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Hora Fim</label>
-                  <select 
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
-                    value={newEnd}
-                    onChange={(e) => {
-                      // Simples validação: fim deve ser maior que início
-                      setNewEnd(e.target.value);
-                    }}
-                  >
-                    {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 flex gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-slate-600 font-bold hover:bg-gray-50 rounded-xl transition">
-                Cancelar
-              </button>
-              <button onClick={addSlot} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition">
-                Adicionar Slot
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

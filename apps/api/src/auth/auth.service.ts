@@ -48,6 +48,13 @@ export class AuthService {
     return user;
   }
 
+  /** Cadastra o usuário e devolve o mesmo payload do login (JWT), sem etapa extra de login. */
+  async registerAndLogin(data: any) {
+    const user = await this.createUser(data);
+    const { password: _removed, ...userWithoutPassword } = user;
+    return this.login(userWithoutPassword);
+  }
+
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.findUserByEmail(email);
     if (user && (await bcrypt.compare(pass, user.password))) {

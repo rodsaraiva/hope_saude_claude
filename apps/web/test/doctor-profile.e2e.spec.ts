@@ -25,16 +25,9 @@ test.describe('Perfil do médico (paciente)', () => {
     await page.click('label:has-text("Paciente")');
     await Promise.all([
       page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
-      page.click('button:has-text("Cadastrar")'),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
     ]);
-    await page.waitForURL(/\/login/, { timeout: 60000 });
-
-    await page.goto('/login');
-    await page.waitForLoadState('domcontentloaded');
-    await page.fill('input[placeholder="E-mail"]', `patient-profile-${ts}@test.com`);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await page.click('button:has-text("Entrar")');
-    await page.waitForURL(/localhost:3001\/?$/, { timeout: 15000 });
+    await page.waitForURL(/localhost:3001\/?$/, { timeout: 60000 });
 
     await page.goto('/doctors/999999');
     await page.waitForLoadState('networkidle');
@@ -58,17 +51,9 @@ test.describe('Perfil do médico (paciente)', () => {
     await page.click('label:has-text("Médico")');
     await Promise.all([
       page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
-      page.click('button:has-text("Cadastrar")'),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
     ]);
-    await page.waitForURL(/\/login/, { timeout: 60000 });
-
-    await page.goto('/login');
-    await page.waitForLoadState('domcontentloaded');
-    await page.fill('input[placeholder="E-mail"]', doctorEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await expect(page.locator('input[placeholder="E-mail"]')).toHaveValue(doctorEmail);
-    await page.click('button:has-text("Entrar")');
-    await page.waitForURL(/\/dashboard\/doctor/, { timeout: 45000 });
+    await page.waitForURL(/\/dashboard\/doctor/, { timeout: 60000 });
 
     await page.goto('/setup/doctor');
     await page.waitForLoadState('domcontentloaded');
@@ -99,17 +84,9 @@ test.describe('Perfil do médico (paciente)', () => {
     await page.click('label:has-text("Paciente")');
     await Promise.all([
       page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
-      page.click('button:has-text("Cadastrar")'),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
     ]);
-    await page.waitForURL(/\/login/, { timeout: 60000 });
-
-    await page.goto('/login');
-    await page.waitForLoadState('domcontentloaded');
-    await page.fill('input[placeholder="E-mail"]', patientEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await expect(page.locator('input[placeholder="E-mail"]')).toHaveValue(patientEmail);
-    await page.click('button:has-text("Entrar")');
-    await page.waitForURL(/localhost:3001\/?$/, { timeout: 15000 });
+    await page.waitForURL(/localhost:3001\/?$/, { timeout: 60000 });
 
     await page.goto(`/doctors/${doctorUserId}`);
     await page.waitForLoadState('networkidle');

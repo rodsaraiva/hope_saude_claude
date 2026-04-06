@@ -21,15 +21,9 @@ test.describe('Fluxo de Agendamento e Pagamento (Asaas)', () => {
       (res) => res.url().includes('/auth/register') && res.ok(),
       { timeout: 120000 },
     );
-    await page.click('button:has-text("Cadastrar")');
+    await page.getByRole('button', { name: /criar minha conta/i }).click();
     await regRes;
-    await page.waitForURL(/\/login/, { timeout: 60000 });
-
-    await page.goto('/login');
-    await page.fill('input[placeholder="E-mail"]', doctorEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await page.click('button:has-text("Entrar")');
-    await page.waitForURL(/\/dashboard\/doctor/);
+    await page.waitForURL(/\/dashboard\/doctor/, { timeout: 60000 });
 
     // 2. Setup e Disponibilidade
     await page.goto('/setup/doctor');
@@ -59,14 +53,9 @@ test.describe('Fluxo de Agendamento e Pagamento (Asaas)', () => {
     await page.click('label:has-text("Paciente")');
     await Promise.all([
       page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
-      page.click('button:has-text("Cadastrar")'),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
     ]);
-    await page.waitForURL(/\/login/);
-
-    await page.fill('input[placeholder="E-mail"]', patientEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await page.click('button:has-text("Entrar")');
-    await page.waitForURL(/localhost:3001\/?$/);
+    await page.waitForURL(/localhost:3001\/?$/, { timeout: 60000 });
 
     // Removemos o mock genérico do checkout aqui. Vamos mockar só o sucesso.
     // 4. Acessa perfil do médico
@@ -76,18 +65,41 @@ test.describe('Fluxo de Agendamento e Pagamento (Asaas)', () => {
     // 5. Clica para Agendar e Finalizar o Pagamento
     await page.click('button:has-text("Ver horários e agendar")');
     
-    // Intercepta a primeira chamada que dará erro (sem CPF) -> vamos deixar ir pro backend real 
-    // ou podemos mockar o 400. Vamos mockar o 400 para garantir estabilidade E2E
+    let checkoutCount = 0;
     await page.route('**/payments/checkout', async (route) => {
-      await route.fulfill({
-        status: 400,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          code: 'MISSING_PATIENT_PROFILE',
-          message: 'Falta CPF',
-        }),
-      });
-    }, { times: 1 });
+      checkoutCount++;
+      const req = route.request();
+
+      if (checkoutCount === 1) {
+        // Primeiro checkout: Falta perfil
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'MISSING_PATIENT_PROFILE',
+            message: 'Falta CPF',
+          }),
+        });
+        return;
+      }
+
+      if (req.method() === 'POST') {
+        // Segundo checkout (após preencher CPF)
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            paymentId: 'pay_e2e_mock',
+            paymentMethod: 'PIX',
+            invoiceUrl: 'https://sandbox.asaas.com/e2e-pix',
+            value: 150,
+            pixQrPending: true,
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
 
     await page.getByRole('dialog').getByRole('button', { name: 'Agendar', exact: true }).first().click();
 
@@ -96,20 +108,6 @@ test.describe('Fluxo de Agendamento e Pagamento (Asaas)', () => {
     await page.fill('input[placeholder="000.000.000-00"]', '12345678909');
     await page.fill('input[placeholder="(00) 00000-0000"]', '11999999999');
 
-    // Mock segunda chamada: cobrança sem QR (QR vem em GET separado)
-    await page.route('**/payments/checkout', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          paymentId: 'pay_e2e_mock',
-          paymentMethod: 'PIX',
-          invoiceUrl: 'https://sandbox.asaas.com/e2e-pix',
-          value: 150,
-          pixQrPending: true,
-        }),
-      });
-    });
     const cors = {
       'Access-Control-Allow-Origin': 'http://localhost:3001',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -151,16 +149,13 @@ test.describe('Fluxo de Agendamento e Pagamento (Asaas)', () => {
     await page.fill('input[placeholder="Nome Completo"]', 'Dr Card');
     await page.fill('input[placeholder="E-mail"]', doctorEmail);
     await page.fill('input[placeholder="Senha"]', 'secret123');
+    await expect(page.locator('input[placeholder="Nome Completo"]')).toHaveValue('Dr Card');
     await page.click('label:has-text("Médico")');
     await Promise.all([
       page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
-      page.click('button:has-text("Cadastrar")'),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
     ]);
-    await page.goto('/login');
-    await page.fill('input[placeholder="E-mail"]', doctorEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await page.click('button:has-text("Entrar")');
-    await page.waitForURL(/\/dashboard\/doctor/);
+    await page.waitForURL(/\/dashboard\/doctor/, { timeout: 60000 });
 
     await page.goto('/setup/doctor');
     await page.fill('input[placeholder*="Especialidade"]', 'Cardiologia');
@@ -184,23 +179,37 @@ test.describe('Fluxo de Agendamento e Pagamento (Asaas)', () => {
     await page.fill('input[placeholder="Nome Completo"]', 'Paciente Cartão');
     await page.fill('input[placeholder="E-mail"]', patientEmail);
     await page.fill('input[placeholder="Senha"]', 'secret123');
+    await expect(page.locator('input[placeholder="Nome Completo"]')).toHaveValue('Paciente Cartão');
+    await page.fill('input[placeholder="E-mail"]', patientEmail);
     await page.click('label:has-text("Paciente")');
     await Promise.all([
       page.waitForResponse((res) => res.url().includes('/auth/register') && res.ok()),
-      page.click('button:has-text("Cadastrar")'),
+      page.getByRole('button', { name: /criar minha conta/i }).click(),
     ]);
-    await page.goto('/login');
-    await page.fill('input[placeholder="E-mail"]', patientEmail);
-    await page.fill('input[placeholder="Senha"]', 'secret123');
-    await page.click('button:has-text("Entrar")');
-    await page.waitForURL(/localhost:3001\/?$/);
+    await page.waitForURL(/localhost:3001\/?$/, { timeout: 60000 });
 
     // 3. Acessa médico e Mock da Rota Checkout
     await page.goto(`/doctors/${doctorUserId}`);
     await page.waitForLoadState('domcontentloaded');
 
+    let checkoutCount = 0;
     await page.route('**/payments/checkout', async (route) => {
+      checkoutCount++;
       const req = route.request();
+      
+      if (checkoutCount === 1) {
+        // Primeiro checkout: Falta perfil
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'MISSING_PATIENT_PROFILE',
+            message: 'Falta CPF',
+          }),
+        });
+        return;
+      }
+
       if (req.method() === 'POST') {
         const body = req.postDataJSON();
         if (body?.paymentMethod === 'PIX') {

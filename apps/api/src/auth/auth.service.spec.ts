@@ -62,6 +62,25 @@ describe('AuthService (TDD)', () => {
     expect(result).toEqual(createdUser);
   });
 
+  it('registerAndLogin cria usuário e retorna access_token como login', async () => {
+    const userData = { email: 'new@test.com', name: 'N', password: 'secret12', role: 'PATIENT' as const };
+    const createdUser = {
+      id: 9,
+      email: userData.email,
+      name: userData.name,
+      role: 'PATIENT',
+      password: 'hashed',
+    };
+    mockPrisma.user.create.mockResolvedValue(createdUser);
+    mockPrisma.patientProfile.create.mockResolvedValue({ id: 1, userId: 9 });
+    mockJwt.sign.mockReturnValue('jwt-after-register');
+
+    const result = await service.registerAndLogin(userData);
+
+    expect(mockJwt.sign).toHaveBeenCalled();
+    expect(result).toEqual({ access_token: 'jwt-after-register' });
+  });
+
   it('should identify a user with DOCTOR role', () => {
     const user = { id: 1, role: 'DOCTOR' };
     expect(service.isDoctor(user)).toBe(true);

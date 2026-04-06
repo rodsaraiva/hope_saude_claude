@@ -18,6 +18,26 @@ model User {
 
   doctorProfile  DoctorProfile?
   patientProfile PatientProfile?
+
+  patientAppointments Appointment[] @relation("PatientAppointments")
+  doctorAppointments  Appointment[] @relation("DoctorAppointments")
+
+  patientRecords MedicalRecord[] @relation("PatientRecords")
+  doctorRecords  MedicalRecord[] @relation("DoctorRecords")
+
+  patientPrescriptions Prescription[] @relation("PatientPrescriptions")
+  doctorPrescriptions  Prescription[] @relation("DoctorPrescriptions")
+}
+
+model ConsultationModel {
+  id              Int           @id @default(autoincrement())
+  doctorProfileId Int
+  doctorProfile   DoctorProfile @relation(fields: [doctorProfileId], references: [id])
+  name            String
+  durationMinutes Int
+  price           Float
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model DoctorProfile {
@@ -28,6 +48,8 @@ model DoctorProfile {
   crm          String   @unique
   bio          String?
   availability String?  // SQLite usa String para armazenar JSON serializado
+
+  consultationModels ConsultationModel[]
 }
 
 model PatientProfile {
@@ -42,22 +64,89 @@ model PatientProfile {
 }
 
 model Appointment {
-  id        Int      @id @default(autoincrement())
-  patientId Int
-  doctorId  Int
-  date      DateTime
-  status    String   @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
-  paymentId String?
+  id                  Int      @id @default(autoincrement())
+  patientId           Int
+  patient             User     @relation("PatientAppointments", fields: [patientId], references: [id])
+  doctorId            Int
+  doctor              User     @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  date                DateTime
+  status              String   @default("CONFIRMED") // CONFIRMED ao persistir; COMPLETED, CANCELLED em fluxos futuros
+  paymentId           String?
+  consultationModelId Int?
+  durationMinutes     Int      @default(60)
+  price               Float    @default(150.0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  medicalRecord MedicalRecord?
+  prescriptions Prescription[]
+}
+
+model MedicalRecord {
+  id            Int          @id @default(autoincrement())
+  patientId     Int
+  patient       User         @relation("PatientRecords", fields: [patientId], references: [id])
+  doctorId      Int
+  doctor        User         @relation("DoctorRecords", fields: [doctorId], references: [id])
+  appointmentId Int?         @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  content   String // Armazenará o conteúdo do prontuário (JSON SOAP ou texto)
+  status    String   @default("DRAFT") // DRAFT ou SIGNED
+  type      String   @default("EVOLUTION") // EVOLUTION, ANAMNESIS, etc.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Novos campos de assinatura digital para validade e integridade
+  signature     String?   // Assinatura criptográfica (ex: hash assinado)
+  signatureDate DateTime? // Data/hora exata da assinatura
+  signedHash    String?   // Hash SHA-256 do conteúdo no momento da assinatura
+  signerUserId  Int?      // ID do médico que assinou o documento
+
+  audits MedicalRecordAudit[]
+}
+
+model MedicalRecordAudit {
+  id              Int           @id @default(autoincrement())
+  medicalRecordId Int
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id])
+  content         String
+  changedByUserId Int
+  changedAt       DateTime      @default(now())
+  reason          String?
+}
+
+model Prescription {
+  id            Int          @id @default(autoincrement())
+  patientId     Int
+  patient       User         @relation("PatientPrescriptions", fields: [patientId], references: [id])
+  doctorId      Int
+  doctor        User         @relation("DoctorPrescriptions", fields: [doctorId], references: [id])
+  appointmentId Int?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  medications   String       // JSON string contendo array de medicamentos
+  observations  String?      // Observacoes gerais
+  
+  status        String       @default("DRAFT") // DRAFT, SIGNED
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Assinatura digital (BirdID)
+  signature     String?
+  signatureDate DateTime?
+  signedHash    String?
 }
 
 /// Pagamento Asaas iniciado antes da consulta existir no banco (checkout único).
 model PendingCheckout {
-  id             Int      @id @default(autoincrement())
-  patientId      Int
-  doctorId       Int
-  date           DateTime
-  asaasPaymentId String   @unique
-  createdAt      DateTime @default(now())
+  id                  Int      @id @default(autoincrement())
+  patientId           Int
+  doctorId            Int
+  date                DateTime
+  asaasPaymentId      String   @unique
+  consultationModelId Int?
+  durationMinutes     Int      @default(60)
+  price               Float    @default(150.0)
+  createdAt           DateTime @default(now())
 }

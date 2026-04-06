@@ -169,4 +169,19 @@ export class AsaasService {
     }
     return response.json();
   }
+
+  /** Apenas para Sandbox/Testes: Simula recebimento de pagamento no Asaas. */
+  async receiveInSandbox(paymentId: string) {
+    if (this.isMock()) return { id: paymentId, status: 'RECEIVED' };
+
+    const response = await this.asaasFetch(`/payments/${paymentId}/receiveInSandbox`, {
+      method: 'POST',
+      headers: this.authHeaders,
+    });
+
+    if (!response.ok) {
+      throw new HttpException('Falha ao simular recebimento no Asaas', HttpStatus.BAD_REQUEST);
+    }
+    return response.json();
+  }
 }

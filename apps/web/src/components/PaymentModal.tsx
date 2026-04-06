@@ -1,16 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { X, CreditCard, QrCode } from 'lucide-react';
-import PixCheckoutPanel, { type PixCheckoutData } from '@/components/PixCheckoutPanel';
-
-type Tab = 'pix' | 'card';
+import { X, CreditCard, QrCode, CheckCircle2 } from 'lucide-react';
+import PixCheckoutPanel from '@/components/PixCheckoutPanel';
+import { usePayment } from '@/hooks/usePayment';
 
 export type PaymentModalProps = {
   open: boolean;
   onClose: () => void;
   doctorUserId: number;
   dateIso: string;
+  consultationModelId?: number;
   onMissingProfile: () => void;
 };
 
@@ -19,187 +18,20 @@ export default function PaymentModal({
   onClose,
   doctorUserId,
   dateIso,
+  consultationModelId,
   onMissingProfile,
 }: PaymentModalProps) {
-  const [tab, setTab] = useState<Tab>('pix');
-  /** POST /payments/checkout (criar cobrança) */
-  const [pixChargeLoading, setPixChargeLoading] = useState(false);
-  /** GET /payments/pix-qr/:id */
-  const [pixQrLoading, setPixQrLoading] = useState(false);
-  /** Erro só na etapa do QR (cobrança já criada) */
-  const [pixQrFetchError, setPixQrFetchError] = useState<string | null>(null);
-  const [pixError, setPixError] = useState<string | null>(null);
-  const [pixData, setPixData] = useState<PixCheckoutData | null>(null);
-
-  const [cardLoading, setCardLoading] = useState(false);
-  const [cardError, setCardError] = useState<string | null>(null);
-  const [cardDone, setCardDone] = useState(false);
-
-  const [holderName, setHolderName] = useState('');
-  const [number, setNumber] = useState('');
-  const [expiryMonth, setExpiryMonth] = useState('');
-  const [expiryYear, setExpiryYear] = useState('');
-  const [ccv, setCcv] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [addressNumber, setAddressNumber] = useState('');
-  const [mobilePhone, setMobilePhone] = useState('');
-
-  /** Evita novo POST ao reabrir a aba PIX depois que cobrança+QR já foram carregados para o mesmo agendamento. */
-  const pixDoneKeyRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      setTab('pix');
-      setPixData(null);
-      setPixError(null);
-      setPixQrFetchError(null);
-      setPixChargeLoading(false);
-      setPixQrLoading(false);
-      pixDoneKeyRef.current = null;
-      setCardDone(false);
-      setCardError(null);
-      return;
-    }
-    if (tab !== 'pix') return;
-
-    const sessionKey = `${doctorUserId}:${dateIso}`;
-    if (pixDoneKeyRef.current === sessionKey) {
-      return;
-    }
-
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    const ac = new AbortController();
-
-    setPixChargeLoading(true);
-    setPixQrLoading(false);
-    setPixError(null);
-    setPixQrFetchError(null);
-
-    (async () => {
-      try {
-        const res = await fetch('http://localhost:3000/payments/checkout', {
-          method: 'POST',
-          signal: ac.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            doctorId: doctorUserId,
-            date: dateIso,
-            paymentMethod: 'PIX',
-          }),
-        });
-        const data = await res.json().catch(() => null);
-        if (res.status === 400 && data?.code === 'MISSING_PATIENT_PROFILE') {
-          onMissingProfile();
-          return;
-        }
-        if (!res.ok) {
-          setPixError(data?.message || 'Não foi possível gerar o PIX.');
-          return;
-        }
-
-        const paymentId = data.paymentId as string;
-        setPixData({
-          paymentId,
-          value: typeof data.value === 'number' ? data.value : undefined,
-          invoiceUrl: data.invoiceUrl,
-        });
-
-        setPixChargeLoading(false);
-        setPixQrLoading(true);
-
-        const qrRes = await fetch(
-          `http://localhost:3000/payments/pix-qr/${encodeURIComponent(paymentId)}`,
-          {
-            signal: ac.signal,
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-        const qr = await qrRes.json().catch(() => null);
-        if (!qrRes.ok) {
-          const msg = qr?.message || 'Não foi possível obter o QR Code. Tente fechar e abrir de novo.';
-          setPixQrFetchError(msg);
-          return;
-        }
-        setPixData((prev) =>
-          prev
-            ? {
-                ...prev,
-                pixQrCode: qr.pixQrCode,
-                pixCode: qr.pixCode,
-                pixExpiresAt: qr.pixExpiresAt,
-              }
-            : null,
-        );
-        pixDoneKeyRef.current = sessionKey;
-      } catch (e: unknown) {
-        if ((e as Error)?.name === 'AbortError') return;
-        setPixError('Falha de conexão.');
-      } finally {
-        if (!ac.signal.aborted) {
-          setPixChargeLoading(false);
-          setPixQrLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      ac.abort();
-    };
-  }, [open, tab, doctorUserId, dateIso, onMissingProfile]);
-
-  const submitCard = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCardError(null);
-    setCardLoading(true);
-    const token = localStorage.getItem('token');
-    try {
-      const res = await fetch('http://localhost:3000/payments/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          doctorId: doctorUserId,
-          date: dateIso,
-          paymentMethod: 'CREDIT_CARD',
-          creditCard: {
-            holderName,
-            number,
-            expiryMonth,
-            expiryYear,
-            ccv,
-          },
-          creditCardHolderInfo: {
-            postalCode,
-            addressNumber,
-            mobilePhone: mobilePhone || undefined,
-          },
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (res.status === 400 && data?.code === 'MISSING_PATIENT_PROFILE') {
-        onMissingProfile();
-        return;
-      }
-      if (!res.ok) {
-        setCardError(data?.message || 'Pagamento não autorizado. Verifique os dados.');
-        return;
-      }
-      setCardDone(true);
-    } catch {
-      setCardError('Falha de conexão.');
-    } finally {
-      setCardLoading(false);
-    }
-  };
+  const { tab, setTab, pix, card, manual } = usePayment({
+    open,
+    doctorUserId,
+    dateIso,
+    consultationModelId,
+    onMissingProfile,
+  });
 
   if (!open) return null;
+
+  const currentPaymentId = tab === 'pix' ? pix.data?.paymentId : card.paymentId;
 
   return (
     <div
@@ -251,146 +83,193 @@ export default function PaymentModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-          {tab === 'pix' && (
-            <div>
-              {pixChargeLoading && !pixData && (
-                <p className="text-center text-sm text-slate-600" role="status">
-                  Gerando cobrança PIX…
-                </p>
-              )}
-              {pixError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                  {pixError}
-                </div>
-              )}
-              {pixData && (
-                <PixCheckoutPanel
-                  data={pixData}
-                  qrLoading={pixQrLoading && !pixQrFetchError}
-                  qrFetchError={pixQrFetchError}
-                  className="mb-0 border-0 shadow-none"
-                  embedded
-                />
-              )}
+          {manual.success ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center animate-in zoom-in-95 duration-300">
+              <CheckCircle2 className="h-16 w-16 text-emerald-500 mb-4" />
+              <h3 className="text-2xl font-bold text-slate-900">Consulta Confirmada!</h3>
+              <p className="mt-2 text-slate-600 max-w-sm">
+                Seu pagamento foi confirmado com sucesso e sua consulta já está na agenda.
+              </p>
+              <button
+                onClick={onClose}
+                className="mt-8 rounded-xl bg-slate-900 px-8 py-3 text-sm font-bold text-white hover:bg-slate-800 transition-colors"
+              >
+                Ver minhas consultas
+              </button>
             </div>
-          )}
-
-          {tab === 'card' && (
-            <div>
-              {cardDone ? (
-                <div
-                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-8 text-center"
-                  role="status"
-                >
-                  <p className="text-lg font-semibold text-emerald-900">Pagamento processado</p>
-                  <p className="mt-2 text-sm text-emerald-800">
-                    Quando o Asaas confirmar, sua consulta será agendada automaticamente.
-                  </p>
-                </div>
-              ) : (
-                <form onSubmit={submitCard} className="mx-auto max-w-lg space-y-4">
-                  <p className="text-sm text-slate-600">
-                    Preencha os dados do cartão e o endereço de cobrança exigidos pelo Asaas.
-                  </p>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700">Nome no cartão</label>
-                    <input
-                      required
-                      value={holderName}
-                      onChange={(e) => setHolderName(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      autoComplete="cc-name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700">Número do cartão</label>
-                    <input
-                      required
-                      value={number}
-                      onChange={(e) => setNumber(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      inputMode="numeric"
-                      autoComplete="cc-number"
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700">Mês</label>
-                      <input
-                        required
-                        placeholder="MM"
-                        value={expiryMonth}
-                        onChange={(e) => setExpiryMonth(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        maxLength={2}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700">Ano</label>
-                      <input
-                        required
-                        placeholder="AAAA"
-                        value={expiryYear}
-                        onChange={(e) => setExpiryYear(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        maxLength={4}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700">CVV</label>
-                      <input
-                        required
-                        value={ccv}
-                        onChange={(e) => setCcv(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        maxLength={4}
-                        autoComplete="cc-csc"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700">CEP</label>
-                      <input
-                        required
-                        value={postalCode}
-                        onChange={(e) => setPostalCode(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700">Número</label>
-                      <input
-                        required
-                        value={addressNumber}
-                        onChange={(e) => setAddressNumber(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700">Celular (opcional)</label>
-                    <input
-                      value={mobilePhone}
-                      onChange={(e) => setMobilePhone(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    />
-                  </div>
-                  {cardError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-                      {cardError}
+          ) : (
+            <>
+              {tab === 'pix' && (
+                <div>
+                  {pix.chargeLoading && !pix.data && (
+                    <p className="text-center text-sm text-slate-600" role="status">
+                      Gerando cobrança PIX…
+                    </p>
+                  )}
+                  {pix.error && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                      {pix.error}
                     </div>
                   )}
-                  <button
-                    type="submit"
-                    disabled={cardLoading}
-                    className="w-full rounded-xl bg-sky-600 py-3 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
-                  >
-                    {cardLoading ? 'Processando…' : 'Pagar com cartão'}
-                  </button>
-                </form>
+                  {pix.data && (
+                    <PixCheckoutPanel
+                      data={pix.data}
+                      qrLoading={pix.qrLoading && !pix.qrFetchError}
+                      qrFetchError={pix.qrFetchError}
+                      className="mb-0 border-0 shadow-none"
+                      embedded
+                    />
+                  )}
+                </div>
               )}
-            </div>
+
+              {tab === 'card' && (
+                <div>
+                  {card.done ? (
+                    <div
+                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-8 text-center"
+                      role="status"
+                    >
+                      <p className="text-lg font-semibold text-emerald-900">Pagamento processado</p>
+                      <p className="mt-2 text-sm text-emerald-800">
+                        Quando o Asaas confirmar, sua consulta será agendada automaticamente.
+                      </p>
+                    </div>
+                  ) : (
+                    <form onSubmit={card.submit} className="mx-auto max-w-lg space-y-4">
+                      <p className="text-sm text-slate-600">
+                        Preencha os dados do cartão e o endereço de cobrança exigidos pelo Asaas.
+                      </p>
+                      <div>
+                        <label htmlFor="cc-name" className="block text-xs font-medium text-slate-700">Nome no cartão</label>
+                        <input
+                          id="cc-name"
+                          required
+                          value={card.form.holderName}
+                          onChange={(e) => card.form.setHolderName(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          autoComplete="cc-name"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="cc-number" className="block text-xs font-medium text-slate-700">Número do cartão</label>
+                        <input
+                          id="cc-number"
+                          required
+                          value={card.form.number}
+                          onChange={(e) => card.form.setNumber(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          inputMode="numeric"
+                          autoComplete="cc-number"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label htmlFor="cc-exp-month" className="block text-xs font-medium text-slate-700">Mês</label>
+                          <input
+                            id="cc-exp-month"
+                            required
+                            placeholder="MM"
+                            value={card.form.expiryMonth}
+                            onChange={(e) => card.form.setExpiryMonth(e.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            maxLength={2}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="cc-exp-year" className="block text-xs font-medium text-slate-700">Ano</label>
+                          <input
+                            id="cc-exp-year"
+                            required
+                            placeholder="AAAA"
+                            value={card.form.expiryYear}
+                            onChange={(e) => card.form.setExpiryYear(e.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            maxLength={4}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="cc-ccv" className="block text-xs font-medium text-slate-700">CVV</label>
+                          <input
+                            id="cc-ccv"
+                            required
+                            value={card.form.ccv}
+                            onChange={(e) => card.form.setCcv(e.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            maxLength={4}
+                            autoComplete="cc-csc"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="cc-cep" className="block text-xs font-medium text-slate-700">CEP</label>
+                          <input
+                            id="cc-cep"
+                            required
+                            value={card.form.postalCode}
+                            onChange={(e) => card.form.setPostalCode(e.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="cc-number-addr" className="block text-xs font-medium text-slate-700">Número</label>
+                          <input
+                            id="cc-number-addr"
+                            required
+                            value={card.form.addressNumber}
+                            onChange={(e) => card.form.setAddressNumber(e.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="cc-phone" className="block text-xs font-medium text-slate-700">Celular (opcional)</label>
+                        <input
+                          id="cc-phone"
+                          value={card.form.mobilePhone}
+                          onChange={(e) => card.form.setMobilePhone(e.target.value)}
+                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      {card.error && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                          {card.error}
+                        </div>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={card.loading}
+                        className="w-full rounded-xl bg-sky-600 py-3 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
+                      >
+                        {card.loading ? 'Processando…' : 'Pagar com cartão'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {currentPaymentId && (
+                <div className="mt-8 border-t border-slate-100 pt-6">
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">
+                      Ambiente de Desenvolvimento
+                    </p>
+                    <p className="text-xs text-amber-700 mb-4">
+                      Para agilizar seu teste, você pode marcar esta cobrança como paga manualmente, simulando o retorno do Asaas.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={manual.loading}
+                      onClick={() => manual.confirm(currentPaymentId)}
+                      className="w-full rounded-xl bg-amber-600 py-2.5 text-xs font-bold text-white hover:bg-amber-700 transition-colors disabled:opacity-50"
+                    >
+                      {manual.loading ? 'Confirmando...' : 'Marcar como Pago (Simular Asaas)'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

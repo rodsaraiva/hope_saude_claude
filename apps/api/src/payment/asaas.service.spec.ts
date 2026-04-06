@@ -157,5 +157,18 @@ describe('AsaasService', () => {
     expect(pixData.encodedImage).toBe('base64_qr_code');
     expect(pixData.payload).toBe('pix_copy_paste_code');
   });
+
+  it('should call receiveInSandbox endpoint', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({ id: 'pay_123', status: 'RECEIVED' }),
+    } as any);
+
+    const result = await service.receiveInSandbox('pay_123');
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/payments/pay_123/receiveInSandbox'), expect.objectContaining({
+      method: 'POST'
+    }));
+    expect(result.status).toBe('RECEIVED');
+  });
 });
 
