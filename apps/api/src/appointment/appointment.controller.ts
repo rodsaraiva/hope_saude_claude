@@ -1,8 +1,11 @@
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
 import { AuthenticatedRequest } from '../auth/authenticated-request';
 
+@ApiTags('appointment')
+@ApiBearerAuth('JWT')
 @Controller('appointments')
 @UseGuards(AuthGuard('jwt'))
 export class AppointmentController {

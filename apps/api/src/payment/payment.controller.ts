@@ -1,9 +1,12 @@
 import { Controller, Post, Get, Body, UseGuards, Param, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { AuthenticatedRequest } from '../auth/authenticated-request';
 
+@ApiTags('payment')
+@ApiBearerAuth('JWT')
 @Controller('payments')
 @UseGuards(AuthGuard('jwt'))
 export class PaymentController {

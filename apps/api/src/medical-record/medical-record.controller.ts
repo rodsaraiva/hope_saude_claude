@@ -11,9 +11,12 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { MedicalRecordService } from './medical-record.service';
 import { AuthenticatedRequest } from '../auth/authenticated-request';
 
+@ApiTags('medical-record')
+@ApiBearerAuth('JWT')
 @Controller('medical-records')
 @UseGuards(AuthGuard('jwt'))
 export class MedicalRecordController {

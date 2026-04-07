@@ -9,6 +9,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { AuthService } from './auth.service';
@@ -17,16 +18,19 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthenticatedRequest } from './authenticated-request';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @ApiOperation({ summary: 'Cadastra e já loga o usuário, retornando access_token' })
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('register')
   async register(@Body() createUserDto: RegisterDto) {
     return this.authService.registerAndLogin(createUserDto);
   }
 
+  @ApiOperation({ summary: 'Login com e-mail/senha — retorna JWT' })
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('login')
   async login(@Body() body: LoginDto) {
@@ -38,6 +42,8 @@ export class AuthController {
   }
 
   /** Conta básica (nome, e-mail, papel) — não exige DoctorProfile/PatientProfile. */
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Dados básicos do usuário logado (nome/email/role)' })
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   async me(@Request() req: { user: { userId: number } }) {

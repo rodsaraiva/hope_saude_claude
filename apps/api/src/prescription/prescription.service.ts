@@ -1,13 +1,33 @@
 import { Injectable, ForbiddenException, NotFoundException, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { CryptographyService } from '../common/cryptography.service';
 import { SignatureProvider } from '../common/signature.provider';
 
+/**
+ * PrescriptionService.
+ *
+ * LGPD: o campo `medications` (JSON serializado contendo nome, dosagem,
+ * etc.) é encriptado em repouso via AES-256-GCM. Toda leitura passa por
+ * decryptOne() antes de devolver. O fluxo de assinatura usa os dados
+ * decriptados como input do signatureProvider — o conteúdo assinado
+ * inclui medications em texto puro e o JWS resultante é gravado em
+ * `signature`.
+ */
 @Injectable()
 export class PrescriptionService {
   constructor(
     private prisma: PrismaService,
+    private cryptoService: CryptographyService,
     @Inject('SignatureProvider') private signatureProvider: SignatureProvider,
   ) {}
+
+  private decryptOne<T extends { medications?: string | null } | null>(row: T): T {
+    if (!row) return row;
+    return {
+      ...row,
+      medications: this.cryptoService.decryptNullable(row.medications),
+    } as T;
+  }
 
   async create(data: {
     doctorId: number;
@@ -33,8 +53,6 @@ export class PrescriptionService {
         throw new ForbiddenException('Paciente não corresponde ao agendamento');
       }
     } else {
-      // Sem appointmentId: exige que haja ao menos um appointment prévio
-      // entre este médico e este paciente (RBAC doctor↔patient).
       const hasRelation = await this.prisma.appointment.findFirst({
         where: { doctorId: data.doctorId, patientId: data.patientId },
       });
@@ -46,28 +64,34 @@ export class PrescriptionService {
       }
     }
 
-    return this.prisma.prescription.create({
+    const encryptedMedications = this.cryptoService.encryptNullable(data.medications) as string;
+
+    const created = await this.prisma.prescription.create({
       data: {
         doctorId: data.doctorId,
         patientId: data.patientId,
         appointmentId: data.appointmentId,
-        medications: data.medications,
+        medications: encryptedMedications,
         observations: data.observations,
         status: 'DRAFT',
       },
     });
+
+    return this.decryptOne(created);
   }
 
   async findAllByPatient(doctorId: number | undefined, patientId: number) {
-    const where: any = { patientId };
+    const where: { patientId: number; doctorId?: number } = { patientId };
     if (doctorId !== undefined) {
       where.doctorId = doctorId;
     }
 
-    return this.prisma.prescription.findMany({
+    const rows = await this.prisma.prescription.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     });
+
+    return rows.map((r) => this.decryptOne(r));
   }
 
   async findOne(doctorId: number, prescriptionId: number) {
@@ -83,7 +107,7 @@ export class PrescriptionService {
       throw new ForbiddenException('Você não tem permissão para visualizar esta receita');
     }
 
-    return prescription;
+    return this.decryptOne(prescription);
   }
 
   async update(
@@ -97,23 +121,26 @@ export class PrescriptionService {
       throw new ForbiddenException('Não é possível editar uma receita já assinada');
     }
 
-    return this.prisma.prescription.update({
+    const updated = await this.prisma.prescription.update({
       where: { id: prescriptionId },
       data: {
-        medications: data.medications,
+        medications: this.cryptoService.encryptNullable(data.medications) as string,
         observations: data.observations,
       },
     });
+
+    return this.decryptOne(updated);
   }
 
-  async sign(doctorId: number, prescriptionId: number, authData?: any) {
+  async sign(doctorId: number, prescriptionId: number, authData?: unknown) {
     const prescription = await this.findOne(doctorId, prescriptionId);
 
     if (prescription.status === 'SIGNED') {
       return prescription;
     }
 
-    // O conteúdo para assinatura deve ser uma representação estável da receita
+    // O conteúdo para assinatura deve ser uma representação estável da receita.
+    // medications já está DECRIPTADO via findOne — vai em texto puro pro provider.
     const contentToSign = JSON.stringify({
       medications: prescription.medications,
       observations: prescription.observations,
@@ -124,7 +151,7 @@ export class PrescriptionService {
 
     const result = await this.signatureProvider.sign(contentToSign, authData);
 
-    return this.prisma.prescription.update({
+    const updated = await this.prisma.prescription.update({
       where: { id: prescriptionId },
       data: {
         status: 'SIGNED',
@@ -133,5 +160,7 @@ export class PrescriptionService {
         signedHash: result.hash,
       },
     });
+
+    return this.decryptOne(updated);
   }
 }

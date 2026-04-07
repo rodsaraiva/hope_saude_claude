@@ -33,6 +33,12 @@ describe('MedicalRecordService', () => {
   const mockCrypto = {
     hashContent: jest.fn().mockReturnValue('mock-hash'),
     sign: jest.fn().mockReturnValue('mock-signature'),
+    encryptNullable: jest.fn((v: string | null | undefined) => (v == null ? null : `ENC(${v})`)),
+    decryptNullable: jest.fn((v: string | null | undefined) => {
+      if (v == null) return null;
+      const m = /^ENC\((.*)\)$/.exec(v);
+      return m ? m[1] : v;
+    }),
   };
 
   const mockSignatureProvider = {
@@ -93,7 +99,7 @@ describe('MedicalRecordService', () => {
         doctorId,
         patientId,
         appointmentId,
-        content,
+        content: `ENC(${content})`, // LGPD: encriptado em repouso
         status: 'DRAFT',
         type: 'EVOLUTION',
       },
@@ -108,22 +114,26 @@ describe('MedicalRecordService', () => {
       patientId: 2,
     });
 
-    await expect(service.create({
-      doctorId: 1,
-      patientId: 2,
-      appointmentId: 10,
-      content: '...',
-    })).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.create({
+        doctorId: 1,
+        patientId: 2,
+        appointmentId: 10,
+        content: '...',
+      }),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it('não deve criar prontuário se não houver agendamento prévio com o paciente', async () => {
     mockPrisma.appointment.findFirst.mockResolvedValue(null);
 
-    await expect(service.create({
-      doctorId: 1,
-      patientId: 2,
-      content: '...',
-    })).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.create({
+        doctorId: 1,
+        patientId: 2,
+        content: '...',
+      }),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it('deve listar prontuários de um paciente para um médico específico', async () => {
@@ -196,19 +206,21 @@ describe('MedicalRecordService', () => {
     mockPrisma.medicalRecord.findUnique.mockResolvedValue({
       id: recordId,
       doctorId,
+      content: 'ENC(antigo)',
     });
 
     mockPrisma.medicalRecord.update.mockResolvedValue({
       id: recordId,
-      content: newContent,
+      content: `ENC(${newContent})`,
     });
 
     const result = await service.update(doctorId, recordId, newContent);
 
     expect(prisma.medicalRecord.update).toHaveBeenCalledWith({
       where: { id: recordId },
-      data: { content: newContent },
+      data: { content: `ENC(${newContent})` },
     });
+    // Resultado retornado vem decriptado
     expect(result.content).toBe(newContent);
   });
 
@@ -231,7 +243,9 @@ describe('MedicalRecordService', () => {
       status: 'SIGNED',
     });
 
-    await expect(service.update(doctorId, recordId, 'Novo conteúdo')).rejects.toThrow(ForbiddenException);
+    await expect(service.update(doctorId, recordId, 'Novo conteúdo')).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('deve realizar a assinatura eletrônica corretamente usando o SignatureProvider', async () => {
@@ -257,7 +271,7 @@ describe('MedicalRecordService', () => {
     await service.sign(doctorId, recordId, authData);
 
     expect(mockSignatureProvider.sign).toHaveBeenCalledWith(content, authData);
-    
+
     expect(mockPrisma.medicalRecord.update).toHaveBeenCalledWith({
       where: { id: recordId },
       data: expect.objectContaining({
@@ -267,6 +281,94 @@ describe('MedicalRecordService', () => {
         signatureDate: expect.any(Date),
         signerUserId: doctorId,
       }),
+    });
+  });
+
+  describe('LGPD: encriptação de content em repouso', () => {
+    it('encripta content antes de persistir em create()', async () => {
+      mockPrisma.appointment.findUnique.mockResolvedValue({
+        id: 10,
+        doctorId: 1,
+        patientId: 2,
+      });
+      mockPrisma.medicalRecord.create.mockResolvedValue({
+        id: 1,
+        content: 'ENC(plain text content)',
+      });
+
+      await service.create({
+        doctorId: 1,
+        patientId: 2,
+        appointmentId: 10,
+        content: 'plain text content',
+      });
+
+      expect(mockCrypto.encryptNullable).toHaveBeenCalledWith('plain text content');
+      expect(mockPrisma.medicalRecord.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ content: 'ENC(plain text content)' }),
+      });
+    });
+
+    it('decripta content ao retornar findOne()', async () => {
+      mockPrisma.medicalRecord.findUnique.mockResolvedValue({
+        id: 1,
+        doctorId: 1,
+        content: 'ENC(stored encrypted)',
+      });
+
+      const result = await service.findOne(1, 1);
+
+      expect(mockCrypto.decryptNullable).toHaveBeenCalledWith('ENC(stored encrypted)');
+      expect(result.content).toBe('stored encrypted');
+    });
+
+    it('decripta content de cada item em findAllByPatient()', async () => {
+      mockPrisma.medicalRecord.findMany.mockResolvedValue([
+        { id: 1, content: 'ENC(a)' },
+        { id: 2, content: 'ENC(b)' },
+      ]);
+
+      const result = await service.findAllByPatient(1, 2);
+
+      expect(result[0].content).toBe('a');
+      expect(result[1].content).toBe('b');
+    });
+
+    it('sign() chama signatureProvider com content em PLAINTEXT (não encriptado)', async () => {
+      mockPrisma.medicalRecord.findUnique.mockResolvedValue({
+        id: 1,
+        doctorId: 1,
+        status: 'DRAFT',
+        content: 'ENC(documento sensível)',
+      });
+
+      await service.sign(1, 1, { code: 'otp' });
+
+      expect(mockSignatureProvider.sign).toHaveBeenCalledWith('documento sensível', {
+        code: 'otp',
+      });
+    });
+
+    it('update() encripta o novo content e o oldContent salvo no audit', async () => {
+      mockPrisma.medicalRecord.findUnique.mockResolvedValue({
+        id: 1,
+        doctorId: 1,
+        status: 'DRAFT',
+        content: 'ENC(velho)',
+      });
+      mockPrisma.medicalRecord.update.mockResolvedValue({ id: 1 });
+
+      await service.update(1, 1, 'novo');
+
+      // o audit recebe o conteúdo antigo (já encriptado pelo storage)
+      expect(mockPrisma.medicalRecordAudit.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ content: 'ENC(velho)' }),
+      });
+      // o update salva o novo content encriptado
+      expect(mockPrisma.medicalRecord.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { content: 'ENC(novo)' },
+      });
     });
   });
 

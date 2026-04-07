@@ -13,6 +13,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ProfileService } from './profile.service';
 import { SetupDoctorDto } from './dto/setup-doctor.dto';
 import { SetupPatientDto } from './dto/setup-patient.dto';
@@ -30,6 +31,8 @@ interface ConsultationModelInput {
   price: number;
 }
 
+@ApiTags('profile')
+@ApiBearerAuth('JWT')
 @Controller('profile')
 export class ProfileController {
   private readonly logger = new Logger(ProfileController.name);

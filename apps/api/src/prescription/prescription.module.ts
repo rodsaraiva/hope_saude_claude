@@ -4,6 +4,7 @@ import { PrescriptionService } from './prescription.service';
 import { PrismaService } from '../prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { LacunaProvider } from '../common/lacuna.provider';
+import { CryptographyService } from '../common/cryptography.service';
 
 @Module({
   controllers: [PrescriptionController],
@@ -11,6 +12,7 @@ import { LacunaProvider } from '../common/lacuna.provider';
     PrescriptionService,
     PrismaService,
     ConfigService,
+    CryptographyService,
     {
       provide: 'SignatureProvider',
       useClass: LacunaProvider,

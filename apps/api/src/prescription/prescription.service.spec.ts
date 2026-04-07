@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrescriptionService } from './prescription.service';
 import { PrismaService } from '../prisma.service';
+import { CryptographyService } from '../common/cryptography.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('PrescriptionService', () => {
@@ -20,11 +21,21 @@ describe('PrescriptionService', () => {
     },
   };
 
+  const mockCrypto = {
+    encryptNullable: jest.fn((v: string | null | undefined) => (v == null ? null : `ENC(${v})`)),
+    decryptNullable: jest.fn((v: string | null | undefined) => {
+      if (v == null) return null;
+      const m = /^ENC\((.*)\)$/.exec(v);
+      return m ? m[1] : v;
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PrescriptionService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: CryptographyService, useValue: mockCrypto },
         { provide: 'SignatureProvider', useValue: {} }, // Mock do provider
       ],
     }).compile();
@@ -63,13 +74,13 @@ describe('PrescriptionService', () => {
 
     expect(prisma.appointment.findUnique).toHaveBeenCalledWith({ where: { id: appointmentId } });
     expect(mockPrisma.prescription.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         doctorId,
         patientId,
         appointmentId,
-        medications,
+        medications: `ENC(${medications})`, // LGPD: encriptado em repouso
         status: 'DRAFT',
-      },
+      }),
     });
     expect(result.id).toBe(1);
   });
@@ -151,6 +162,55 @@ describe('PrescriptionService', () => {
       orderBy: { createdAt: 'desc' },
     });
     expect(result).toHaveLength(1);
+  });
+
+  describe('LGPD: encriptação de medications em repouso', () => {
+    it('encripta medications antes de persistir em create()', async () => {
+      mockPrisma.appointment.findUnique.mockResolvedValue({
+        id: 10,
+        doctorId: 1,
+        patientId: 2,
+      });
+      mockPrisma.prescription.create.mockResolvedValue({
+        id: 1,
+        medications: 'ENC([])',
+      });
+
+      await service.create({
+        doctorId: 1,
+        patientId: 2,
+        appointmentId: 10,
+        medications: '[]',
+      });
+
+      expect(mockCrypto.encryptNullable).toHaveBeenCalledWith('[]');
+      expect(mockPrisma.prescription.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ medications: 'ENC([])' }),
+      });
+    });
+
+    it('decripta medications ao retornar findOne()', async () => {
+      mockPrisma.prescription.findUnique.mockResolvedValue({
+        id: 1,
+        doctorId: 1,
+        medications: 'ENC([{"name":"X"}])',
+      });
+
+      const result = await service.findOne(1, 1);
+
+      expect(result.medications).toBe('[{"name":"X"}]');
+    });
+
+    it('decripta medications de cada item em findAllByPatient()', async () => {
+      mockPrisma.prescription.findMany.mockResolvedValue([
+        { id: 1, medications: 'ENC(a)' },
+        { id: 2, medications: 'ENC(b)' },
+      ]);
+
+      const result = await service.findAllByPatient(1, 2);
+      expect(result[0].medications).toBe('a');
+      expect(result[1].medications).toBe('b');
+    });
   });
 
   it('deve permitir assinar uma receita usando o SignatureProvider', async () => {

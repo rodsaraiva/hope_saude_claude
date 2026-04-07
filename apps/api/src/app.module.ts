@@ -1,8 +1,9 @@
-import { Module, MiddlewareConsumer, Logger } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
@@ -12,10 +13,12 @@ import { VideoModule } from './video/video.module';
 import { MedicalRecordModule } from './medical-record/medical-record.module';
 import { PrescriptionModule } from './prescription/prescription.module';
 import { HealthModule } from './health/health.module';
+import { buildPinoConfig } from './common/logger/logger.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRoot(buildPinoConfig()),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
@@ -49,15 +52,4 @@ import { HealthModule } from './health/health.module';
     },
   ],
 })
-export class AppModule {
-  private readonly logger = new Logger('HTTP');
-
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply((req: any, _res: any, next: any) => {
-        this.logger.log(`${req.method} ${req.originalUrl || req.url}`);
-        next();
-      })
-      .forRoutes('*');
-  }
-}
+export class AppModule {}
