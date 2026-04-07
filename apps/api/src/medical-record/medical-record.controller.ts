@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { MedicalRecordService } from './medical-record.service';
+import { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('medical-records')
 @UseGuards(AuthGuard('jwt'))
@@ -19,7 +20,10 @@ export class MedicalRecordController {
   constructor(private service: MedicalRecordService) {}
 
   @Post()
-  async create(@Request() req, @Body() body: { patientId: number; appointmentId?: number; content: string; type?: string }) {
+  async create(
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { patientId: number; appointmentId?: number; content: string; type?: string },
+  ) {
     if (req.user.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem criar prontuários');
     }
@@ -31,13 +35,19 @@ export class MedicalRecordController {
   }
 
   @Get('patient/:patientId')
-  async findAllByPatient(@Request() req, @Param('patientId') patientId: string, @Query('search') search?: string) {
+  async findAllByPatient(
+    @Request() req: AuthenticatedRequest,
+    @Param('patientId') patientId: string,
+    @Query('search') search?: string,
+  ) {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'PATIENT') {
       throw new ForbiddenException('Apenas médicos e pacientes podem visualizar prontuários');
     }
 
     if (req.user.role === 'PATIENT' && req.user.userId !== parseInt(patientId, 10)) {
-      throw new ForbiddenException('Você não tem permissão para visualizar o prontuário de outro paciente');
+      throw new ForbiddenException(
+        'Você não tem permissão para visualizar o prontuário de outro paciente',
+      );
     }
 
     return this.service.findAllByPatient(
@@ -48,7 +58,11 @@ export class MedicalRecordController {
   }
 
   @Patch(':id')
-  async update(@Request() req, @Param('id') id: string, @Body() body: { content: string; reason?: string }) {
+  async update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: { content: string; reason?: string },
+  ) {
     if (req.user.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem atualizar prontuários');
     }
@@ -57,7 +71,11 @@ export class MedicalRecordController {
   }
 
   @Post(':id/sign')
-  async sign(@Request() req, @Param('id') id: string, @Body() body?: { authData?: any }) {
+  async sign(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body?: { authData?: unknown },
+  ) {
     if (req.user.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem assinar prontuários');
     }

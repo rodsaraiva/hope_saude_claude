@@ -15,6 +15,7 @@ import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { AuthenticatedRequest } from './authenticated-request';
 
 @Controller('auth')
 export class AuthController {
@@ -50,7 +51,7 @@ export class AuthController {
   @Get('profile/doctor')
   @UseGuards(RolesGuard, AuthGuard('jwt'))
   @Roles('DOCTOR')
-  getDoctorProfile(@Request() req) {
+  getDoctorProfile(@Request() req: AuthenticatedRequest) {
     return {
       message: 'Acesso concedido ao perfil médico',
       user: req.user,
@@ -60,7 +61,7 @@ export class AuthController {
   @Get('profile/patient')
   @UseGuards(RolesGuard, AuthGuard('jwt'))
   @Roles('PATIENT')
-  getPatientProfile(@Request() req) {
+  getPatientProfile(@Request() req: AuthenticatedRequest) {
     return {
       message: 'Acesso concedido ao perfil do paciente',
       user: req.user,

@@ -4,7 +4,9 @@ import { AppointmentService } from './appointment.service';
 
 describe('AppointmentController', () => {
   let controller: AppointmentController;
-  let appointmentService: jest.Mocked<Pick<AppointmentService, 'getDoctorAppointments' | 'getPatientAppointments'>>;
+  let appointmentService: jest.Mocked<
+    Pick<AppointmentService, 'getDoctorAppointments' | 'getPatientAppointments'>
+  >;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -33,8 +35,10 @@ describe('AppointmentController', () => {
       const mockAppointments = [{ id: 1, date: new Date(), status: 'CONFIRMED' }];
       appointmentService.getDoctorAppointments.mockResolvedValue(mockAppointments as any);
 
-      const result = await controller.getMyAppointments({ user: { userId: 10, role: 'DOCTOR' } });
-      
+      const result = await controller.getMyAppointments({
+        user: { userId: 10, role: 'DOCTOR' },
+      } as any);
+
       expect(appointmentService.getDoctorAppointments).toHaveBeenCalledWith(10);
       expect(appointmentService.getPatientAppointments).not.toHaveBeenCalled();
       expect(result).toEqual(mockAppointments);
@@ -44,8 +48,10 @@ describe('AppointmentController', () => {
       const mockAppointments = [{ id: 2, date: new Date(), status: 'PENDING' }];
       appointmentService.getPatientAppointments.mockResolvedValue(mockAppointments as any);
 
-      const result = await controller.getMyAppointments({ user: { userId: 20, role: 'PATIENT' } });
-      
+      const result = await controller.getMyAppointments({
+        user: { userId: 20, role: 'PATIENT' },
+      } as any);
+
       expect(appointmentService.getPatientAppointments).toHaveBeenCalledWith(20);
       expect(appointmentService.getDoctorAppointments).not.toHaveBeenCalled();
       expect(result).toEqual(mockAppointments);

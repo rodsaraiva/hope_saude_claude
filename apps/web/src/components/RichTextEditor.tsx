@@ -4,7 +4,16 @@ import React, { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import { Bold, Italic, List, ListOrdered, Underline as UnderlineIcon, Undo, Redo, Quote } from 'lucide-react';
+import {
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Underline as UnderlineIcon,
+  Undo,
+  Redo,
+  Quote,
+} from 'lucide-react';
 
 interface Props {
   content: string;
@@ -17,7 +26,9 @@ export function RichTextEditor({ content, onChange, readOnly = false, className 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // Podemos desabilitar o que não quisermos do starter kit
+        // StarterKit já inclui underline em versões recentes; desabilitamos
+        // para evitar duplicidade ao adicionar a extensão dedicada abaixo.
+        underline: false,
       }),
       Underline,
     ],
@@ -47,17 +58,17 @@ export function RichTextEditor({ content, onChange, readOnly = false, className 
     return null;
   }
 
-  const MenuButton = ({ 
-    onClick, 
-    isActive, 
-    icon: Icon, 
-    title, 
-    disabled = false 
-  }: { 
-    onClick: () => void; 
-    isActive?: boolean; 
-    icon: any; 
-    title: string; 
+  const MenuButton = ({
+    onClick,
+    isActive,
+    icon: Icon,
+    title,
+    disabled = false,
+  }: {
+    onClick: () => void;
+    isActive?: boolean;
+    icon: any;
+    title: string;
     disabled?: boolean;
   }) => (
     <button
@@ -68,8 +79,8 @@ export function RichTextEditor({ content, onChange, readOnly = false, className 
       disabled={disabled || readOnly}
       title={title}
       className={`p-1.5 rounded-md transition-all ${
-        isActive 
-          ? 'bg-sky-100 text-sky-700 font-bold' 
+        isActive
+          ? 'bg-sky-100 text-sky-700 font-bold'
           : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
       } disabled:opacity-30 disabled:cursor-not-allowed`}
     >
@@ -78,7 +89,9 @@ export function RichTextEditor({ content, onChange, readOnly = false, className 
   );
 
   return (
-    <div className={`flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white focus-within:ring-1 focus-within:ring-sky-500 transition-all ${className}`}>
+    <div
+      className={`flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white focus-within:ring-1 focus-within:ring-sky-500 transition-all ${className}`}
+    >
       {!readOnly && (
         <div className="flex flex-wrap items-center gap-1 p-1.5 bg-slate-50 border-b border-slate-100">
           <MenuButton
@@ -99,7 +112,7 @@ export function RichTextEditor({ content, onChange, readOnly = false, className 
             icon={UnderlineIcon}
             title="Sublinhado (Ctrl+U)"
           />
-          
+
           <div className="w-px h-4 bg-slate-200 mx-1" />
 
           <MenuButton
@@ -138,11 +151,11 @@ export function RichTextEditor({ content, onChange, readOnly = false, className 
         </div>
       )}
 
-      <EditorContent 
-        editor={editor} 
+      <EditorContent
+        editor={editor}
         className="prose prose-sm prose-slate max-w-none p-4 min-h-[300px] focus:outline-none overflow-y-auto"
       />
-      
+
       <style jsx global>{`
         .ProseMirror {
           min-height: 300px;

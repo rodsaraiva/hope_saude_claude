@@ -72,21 +72,30 @@ describe('ProfileController', () => {
   describe('setupPatient', () => {
     it('should call profileService.setupPatientProfile', async () => {
       const data = { cpf: '12345678909', phone: '11999999999' };
-      const reqUser = { userId: 2, role: 'PATIENT', name: 'Test', email: 'test@example.com' };
-      
-      profileService.setupPatientProfile.mockResolvedValue({ 
-        id: 2, userId: 2, cpf: '12345678909', phone: '11999999999', asaasCustomerId: 'cus_123' 
+      const reqUser = {
+        userId: 2,
+        role: 'PATIENT' as const,
+        name: 'Test',
+        email: 'test@example.com',
+      };
+
+      profileService.setupPatientProfile.mockResolvedValue({
+        id: 2,
+        userId: 2,
+        cpf: '12345678909',
+        phone: '11999999999',
+        asaasCustomerId: 'cus_123',
       } as any);
 
-      const result = await controller.setupPatient({ user: reqUser }, data);
-      
+      const result = await controller.setupPatient({ user: reqUser } as any, data);
+
       expect(profileService.setupPatientProfile).toHaveBeenCalledWith(reqUser, data);
       expect(result).toHaveProperty('asaasCustomerId', 'cus_123');
     });
 
     it('should throw ForbiddenException if role is not PATIENT', async () => {
       await expect(
-        controller.setupPatient({ user: { userId: 1, role: 'DOCTOR' } }, {} as any)
+        controller.setupPatient({ user: { userId: 1, role: 'DOCTOR' } } as any, {} as any),
       ).rejects.toThrow(ForbiddenException);
       expect(profileService.setupPatientProfile).not.toHaveBeenCalled();
     });
@@ -95,7 +104,7 @@ describe('ProfileController', () => {
   // Keep other tests minimal for brevity but ensure they pass
   it('should get profile me', async () => {
     profileService.getDoctorProfile.mockResolvedValue({ id: 1 } as any);
-    const res = await controller.getProfile({ user: { userId: 1, role: 'DOCTOR' } });
+    const res = await controller.getProfile({ user: { userId: 1, role: 'DOCTOR' } } as any);
     expect(res).toBeDefined();
   });
 
@@ -131,43 +140,53 @@ describe('ProfileController', () => {
   describe('Consultation Models', () => {
     it('deve permitir a criação de um modelo de consulta se for doutor', async () => {
       const data = { name: 'Consulta Padrão', durationMinutes: 60, price: 150 };
-      const req = { user: { userId: 1, role: 'DOCTOR' } };
-      
-      profileService.createConsultationModel.mockResolvedValue({ id: 1, doctorProfileId: 1, ...data } as any);
+      const req = { user: { userId: 1, role: 'DOCTOR' as const, email: 'd@x.com' } } as any;
+
+      profileService.createConsultationModel.mockResolvedValue({
+        id: 1,
+        doctorProfileId: 1,
+        ...data,
+      } as any);
 
       const result = await controller.createConsultationModel(req, data);
-      
+
       expect(profileService.createConsultationModel).toHaveBeenCalledWith(1, data);
       expect(result.id).toBe(1);
     });
 
     it('deve rejeitar a criação de um modelo de consulta se não for doutor', async () => {
       const data = { name: 'Consulta Padrão', durationMinutes: 60, price: 150 };
-      const req = { user: { userId: 1, role: 'PATIENT' } };
+      const req = { user: { userId: 1, role: 'PATIENT' as const, email: 'p@x.com' } } as any;
 
-      await expect(controller.createConsultationModel(req, data)).rejects.toThrow(ForbiddenException);
+      await expect(controller.createConsultationModel(req, data)).rejects.toThrow(
+        ForbiddenException,
+      );
       expect(profileService.createConsultationModel).not.toHaveBeenCalled();
     });
 
     it('deve permitir a atualização de um modelo de consulta se for doutor', async () => {
       const data = { name: 'Consulta Padrão (Atualizada)', durationMinutes: 45, price: 120 };
-      const req = { user: { userId: 1, role: 'DOCTOR' } };
-      
-      profileService.updateConsultationModel.mockResolvedValue({ id: 1, doctorProfileId: 1, ...data } as any);
+      const req = { user: { userId: 1, role: 'DOCTOR' as const, email: 'd@x.com' } } as any;
+
+      profileService.updateConsultationModel.mockResolvedValue({
+        id: 1,
+        doctorProfileId: 1,
+        ...data,
+      } as any);
 
       const result = await controller.updateConsultationModel(req, '1', data);
-      
+
       expect(profileService.updateConsultationModel).toHaveBeenCalledWith(1, 1, data);
       expect(result.name).toBe(data.name);
     });
 
     it('deve permitir a deleção de um modelo de consulta se for doutor', async () => {
-      const req = { user: { userId: 1, role: 'DOCTOR' } };
-      
+      const req = { user: { userId: 1, role: 'DOCTOR' as const, email: 'd@x.com' } } as any;
+
       profileService.deleteConsultationModel.mockResolvedValue(undefined as any);
 
       await controller.deleteConsultationModel(req, '1');
-      
+
       expect(profileService.deleteConsultationModel).toHaveBeenCalledWith(1, 1);
     });
   });

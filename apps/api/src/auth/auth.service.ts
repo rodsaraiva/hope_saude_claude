@@ -2,6 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import type {
+  AuthTokenResponse,
+  JwtSigningPayload,
+  NewUserInput,
+  PublicUser,
+  UserRole,
+} from './auth.types';
 
 @Injectable()
 export class AuthService {
@@ -17,8 +24,8 @@ export class AuthService {
   }
 
   /** Dados públicos do usuário (sem senha) — sempre que o JWT for válido. */
-  async getPublicUserById(id: number) {
-    return this.prisma.user.findUnique({
+  async getPublicUserById(id: number): Promise<PublicUser | null> {
+    const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -28,13 +35,16 @@ export class AuthService {
         createdAt: true,
       },
     });
+    return user ? (user as PublicUser) : null;
   }
 
-  async createUser(data: any) {
+  async createUser(data: NewUserInput) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const user = await this.prisma.user.create({
       data: {
-        ...data,
+        name: data.name,
+        email: data.email,
+        role: data.role,
         password: hashedPassword,
       },
     });
@@ -49,33 +59,36 @@ export class AuthService {
   }
 
   /** Cadastra o usuário e devolve o mesmo payload do login (JWT), sem etapa extra de login. */
-  async registerAndLogin(data: any) {
+  async registerAndLogin(data: NewUserInput): Promise<AuthTokenResponse> {
     const user = await this.createUser(data);
-    const { password: _removed, ...userWithoutPassword } = user;
-    return this.login(userWithoutPassword);
+    return this.login({
+      id: user.id,
+      email: user.email,
+      role: user.role as UserRole,
+    });
   }
 
-  async validateUser(email: string, pass: string): Promise<any> {
+  async validateUser(email: string, pass: string): Promise<PublicUser | null> {
     const user = await this.findUserByEmail(email);
     if (user && (await bcrypt.compare(pass, user.password))) {
-      const { password, ...result } = user;
-      return result;
+      const { password: _password, updatedAt: _updatedAt, ...result } = user;
+      return result as PublicUser;
     }
     return null;
   }
 
-  async login(user: any) {
+  async login(user: JwtSigningPayload): Promise<AuthTokenResponse> {
     const payload = { email: user.email, sub: user.id, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
     };
   }
 
-  isDoctor(user: any): boolean {
+  isDoctor(user: { role: string }): boolean {
     return user.role === 'DOCTOR';
   }
 
-  isPatient(user: any): boolean {
+  isPatient(user: { role: string }): boolean {
     return user.role === 'PATIENT';
   }
 }

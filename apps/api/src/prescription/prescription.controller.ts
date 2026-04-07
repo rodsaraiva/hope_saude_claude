@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrescriptionService } from './prescription.service';
+import { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('prescriptions')
 @UseGuards(AuthGuard('jwt'))
@@ -18,7 +19,11 @@ export class PrescriptionController {
   constructor(private service: PrescriptionService) {}
 
   @Post()
-  async create(@Request() req, @Body() body: { patientId: number; appointmentId?: number; medications: string; observations?: string }) {
+  async create(
+    @Request() req: AuthenticatedRequest,
+    @Body()
+    body: { patientId: number; appointmentId?: number; medications: string; observations?: string },
+  ) {
     if (req.user.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem criar receitas');
     }
@@ -30,13 +35,18 @@ export class PrescriptionController {
   }
 
   @Get('patient/:patientId')
-  async findAllByPatient(@Request() req, @Param('patientId') patientId: string) {
+  async findAllByPatient(
+    @Request() req: AuthenticatedRequest,
+    @Param('patientId') patientId: string,
+  ) {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'PATIENT') {
       throw new ForbiddenException('Apenas médicos e pacientes podem visualizar receitas');
     }
 
     if (req.user.role === 'PATIENT' && req.user.userId !== parseInt(patientId, 10)) {
-      throw new ForbiddenException('Você não tem permissão para visualizar receitas de outro paciente');
+      throw new ForbiddenException(
+        'Você não tem permissão para visualizar receitas de outro paciente',
+      );
     }
 
     return this.service.findAllByPatient(
@@ -46,7 +56,11 @@ export class PrescriptionController {
   }
 
   @Patch(':id')
-  async update(@Request() req, @Param('id') id: string, @Body() body: { medications: string; observations?: string }) {
+  async update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: { medications: string; observations?: string },
+  ) {
     if (req.user.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem atualizar receitas');
     }
@@ -55,7 +69,11 @@ export class PrescriptionController {
   }
 
   @Post(':id/sign')
-  async sign(@Request() req, @Param('id') id: string, @Body() body?: { authData?: any }) {
+  async sign(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body?: { authData?: unknown },
+  ) {
     if (req.user.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem assinar receitas');
     }

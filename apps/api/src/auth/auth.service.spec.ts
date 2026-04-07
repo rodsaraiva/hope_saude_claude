@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import type { NewUserInput, JwtSigningPayload } from './auth.types';
 
 describe('AuthService (TDD)', () => {
   let service: AuthService;
@@ -35,9 +36,14 @@ describe('AuthService (TDD)', () => {
   });
 
   it('should create a user and a patient profile when role is PATIENT', async () => {
-    const userData = { email: 'patient@test.com', name: 'Patient', password: '123', role: 'PATIENT' };
+    const userData: NewUserInput = {
+      email: 'patient@test.com',
+      name: 'Patient',
+      password: '123',
+      role: 'PATIENT',
+    };
     const createdUser = { id: 1, ...userData };
-    
+
     mockPrisma.user.create.mockResolvedValue(createdUser);
     mockPrisma.patientProfile.create.mockResolvedValue({ id: 1, userId: 1 });
 
@@ -49,9 +55,14 @@ describe('AuthService (TDD)', () => {
   });
 
   it('should NOT create a patient profile when role is DOCTOR', async () => {
-    const userData = { email: 'doctor@test.com', name: 'Doctor', password: '123', role: 'DOCTOR' };
+    const userData: NewUserInput = {
+      email: 'doctor@test.com',
+      name: 'Doctor',
+      password: '123',
+      role: 'DOCTOR',
+    };
     const createdUser = { id: 2, ...userData };
-    
+
     mockPrisma.user.create.mockResolvedValue(createdUser);
     mockPrisma.patientProfile.create.mockClear();
 
@@ -63,7 +74,12 @@ describe('AuthService (TDD)', () => {
   });
 
   it('registerAndLogin cria usuário e retorna access_token como login', async () => {
-    const userData = { email: 'new@test.com', name: 'N', password: 'secret12', role: 'PATIENT' as const };
+    const userData = {
+      email: 'new@test.com',
+      name: 'N',
+      password: 'secret12',
+      role: 'PATIENT' as const,
+    };
     const createdUser = {
       id: 9,
       email: userData.email,
@@ -82,7 +98,35 @@ describe('AuthService (TDD)', () => {
   });
 
   it('should identify a user with DOCTOR role', () => {
-    const user = { id: 1, role: 'DOCTOR' };
+    const user = { id: 1, role: 'DOCTOR' as const };
     expect(service.isDoctor(user)).toBe(true);
+  });
+
+  it('login() aceita JwtSigningPayload tipado e inclui sub/email/role', async () => {
+    mockJwt.sign.mockReturnValue('jwt-x');
+    const payload: JwtSigningPayload = { id: 7, email: 'x@x.com', role: 'DOCTOR' };
+
+    const result = await service.login(payload);
+
+    expect(mockJwt.sign).toHaveBeenCalledWith({
+      email: 'x@x.com',
+      sub: 7,
+      role: 'DOCTOR',
+    });
+    expect(result).toEqual({ access_token: 'jwt-x' });
+  });
+
+  it('createUser aceita NewUserInput tipado', async () => {
+    const userData: NewUserInput = {
+      email: 'typed@test.com',
+      name: 'Typed',
+      password: 'abcdef',
+      role: 'PATIENT',
+    };
+    mockPrisma.user.create.mockResolvedValue({ id: 30, ...userData, password: 'h' });
+    mockPrisma.patientProfile.create.mockResolvedValue({ id: 30 });
+
+    const result = await service.createUser(userData);
+    expect(result.id).toBe(30);
   });
 });

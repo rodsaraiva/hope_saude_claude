@@ -1,14 +1,14 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { PaymentController } from './payment.controller';
 import { AsaasModule } from './asaas.module';
 import { AppointmentModule } from '../appointment/appointment.module';
-import { ProfileModule } from '../profile/profile.module';
+import { ProfileDataModule } from '../profile/data/profile-data.module';
 import { PrismaService } from '../prisma.service';
 import { PaymentCronService } from './payment.cron.service';
 import { PaymentService } from './payment.service';
 
 @Module({
-  imports: [AsaasModule, forwardRef(() => ProfileModule), AppointmentModule],
+  imports: [AsaasModule, ProfileDataModule, AppointmentModule],
   controllers: [PaymentController],
   providers: [PrismaService, PaymentCronService, PaymentService],
   exports: [AsaasModule, PaymentService],

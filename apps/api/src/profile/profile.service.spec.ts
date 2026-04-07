@@ -135,7 +135,7 @@ describe('ProfileService', () => {
     it('deve criar um modelo de consulta', async () => {
       const profile = { id: 10, userId: 1 };
       (prisma.doctorProfile.findUnique as jest.Mock).mockResolvedValue(profile);
-      (prisma.consultationModel.create as jest.Mock).mockResolvedValue({ id: 1, ...profile });
+      (prisma.consultationModel.create as jest.Mock).mockResolvedValue({ ...profile, id: 1 });
 
       await service.createConsultationModel(1, { name: 'Padrão', durationMinutes: 60, price: 150 });
 

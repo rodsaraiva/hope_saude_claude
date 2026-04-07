@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { parseCorsOrigins } from './common/cors.util';
+import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,6 +24,9 @@ async function bootstrap() {
       transform: true, // converte tipos primitivos automaticamente
     }),
   );
+
+  // Traduz erros do Prisma (P2025, P2002, P2003, ...) em respostas HTTP adequadas
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   await app.listen(3000);
 }

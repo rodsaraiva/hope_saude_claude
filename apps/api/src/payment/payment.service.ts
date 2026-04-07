@@ -1,8 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { AsaasService } from './asaas.service';
 import { AppointmentService } from '../appointment/appointment.service';
-import { ProfileService } from '../profile/profile.service';
+import { PatientProfileRepository } from '../profile/data/patient-profile.repository';
+import { DoctorProfileRepository } from '../profile/data/doctor-profile.repository';
 import { CheckoutDto } from './dto/checkout.dto';
+import { AuthenticatedUser } from '../auth/authenticated-request';
 
 @Injectable()
 export class PaymentService {
@@ -11,8 +13,8 @@ export class PaymentService {
   constructor(
     private asaasService: AsaasService,
     private appointmentService: AppointmentService,
-    @Inject(forwardRef(() => ProfileService))
-    private profileService: ProfileService,
+    private patientProfileRepo: PatientProfileRepository,
+    private doctorProfileRepo: DoctorProfileRepository,
   ) {}
 
   /**
@@ -24,7 +26,7 @@ export class PaymentService {
     email: string,
     cpf: string,
   ): Promise<string> {
-    const profile = await this.profileService.getPatientProfile(userId);
+    const profile = await this.patientProfileRepo.findByUserId(userId);
     if (!profile) {
       throw new Error('Perfil de paciente não encontrado');
     }
@@ -33,28 +35,35 @@ export class PaymentService {
     }
 
     const cpfDigits = cpf.replace(/\D/g, '');
-    let customerId = await this.asaasService.findCustomerIdByCpf(cpfDigits);
-    if (!customerId) {
+    const existing = await this.asaasService.findCustomerIdByCpf(cpfDigits);
+    let customerId: string;
+    if (existing) {
+      customerId = existing;
+    } else {
       const created = await this.asaasService.createCustomer(name, email, cpf);
       customerId = created.id;
     }
 
-    await this.profileService.updateAsaasCustomerId(userId, customerId);
+    await this.patientProfileRepo.updateAsaasCustomerId(userId, customerId);
 
     return customerId;
   }
 
-  async processCheckout(user: any, body: CheckoutDto) {
+  async processCheckout(user: AuthenticatedUser, body: CheckoutDto) {
     if (body?.doctorId == null || body?.date == null || body.date === '') {
       throw new BadRequestException('doctorId e date são obrigatórios');
     }
 
     let value = 150;
     let durationMinutes = 60;
-    
+
     if (body.consultationModelId) {
-      const doctorProfile = await this.profileService.getDoctorProfileByUserId(body.doctorId);
-      const model = doctorProfile?.consultationModels?.find((m) => m.id === body.consultationModelId);
+      const doctorProfile = await this.doctorProfileRepo.findByUserIdWithConsultationModels(
+        body.doctorId,
+      );
+      const model = doctorProfile?.consultationModels?.find(
+        (m) => m.id === body.consultationModelId,
+      );
       if (model) {
         value = model.price;
         durationMinutes = model.durationMinutes;
@@ -62,9 +71,12 @@ export class PaymentService {
     }
 
     const patientName = user.name || 'Paciente Anonimo';
-    const patientEmail = user.email;
+    const patientEmail = user.email ?? '';
+    if (!patientEmail) {
+      throw new BadRequestException('E-mail do usuário não disponível na sessão');
+    }
 
-    const patientProfile = await this.profileService.getPatientProfile(user.userId);
+    const patientProfile = await this.patientProfileRepo.findByUserId(user.userId);
     const cpf = patientProfile?.cpf ?? undefined;
 
     if (!cpf) {
@@ -97,7 +109,9 @@ export class PaymentService {
         throw new BadRequestException('Dados do cartão incompletos');
       }
       if (!hi?.postalCode?.trim() || !hi?.addressNumber?.trim()) {
-        throw new BadRequestException('CEP e número do endereço são obrigatórios para pagamento com cartão');
+        throw new BadRequestException(
+          'CEP e número do endereço são obrigatórios para pagamento com cartão',
+        );
       }
 
       const digits = cc.number.replace(/\D/g, '');
@@ -123,8 +137,14 @@ export class PaymentService {
             cpfCnpj: cpf,
             postalCode: hi.postalCode.replace(/\D/g, ''),
             addressNumber: hi.addressNumber.trim(),
-            phone: hi.phone?.replace(/\D/g, '') || patientProfile?.phone?.replace(/\D/g, '') || undefined,
-            mobilePhone: hi.mobilePhone?.replace(/\D/g, '') || patientProfile?.phone?.replace(/\D/g, '') || undefined,
+            phone:
+              hi.phone?.replace(/\D/g, '') ||
+              patientProfile?.phone?.replace(/\D/g, '') ||
+              undefined,
+            mobilePhone:
+              hi.mobilePhone?.replace(/\D/g, '') ||
+              patientProfile?.phone?.replace(/\D/g, '') ||
+              undefined,
           },
         },
       );
@@ -189,7 +209,10 @@ export class PaymentService {
 
   /** Força confirmação do pagamento em Sandbox/Mocks para agilizar testes. */
   async confirmPayment(userId: number, paymentId: string) {
-    const pending = await this.appointmentService.findPendingCheckoutByPatientAndPayment(userId, paymentId);
+    const pending = await this.appointmentService.findPendingCheckoutByPatientAndPayment(
+      userId,
+      paymentId,
+    );
     if (!pending) {
       throw new NotFoundException('Cobrança não encontrada ou sem permissão');
     }
@@ -198,7 +221,9 @@ export class PaymentService {
     try {
       await this.asaasService.receiveInSandbox(paymentId);
     } catch (err) {
-      this.logger.warn(`ConfirmPayment: Asaas Sandbox falhou (talvez já recebido?), prosseguindo manual. ID ${paymentId}`);
+      this.logger.warn(
+        `ConfirmPayment: Asaas Sandbox falhou (talvez já recebido?), prosseguindo manual. ID ${paymentId}`,
+      );
     }
 
     // Cria consulta e remove pendência (mesma lógica do cron)

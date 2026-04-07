@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Loader2, Trash2, Plus } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Clock,
+  Loader2,
+  Trash2,
+  Plus,
+  FileText,
+  Pill,
+} from 'lucide-react';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import {
@@ -45,7 +55,7 @@ export default function DoctorAgenda() {
     recurrence: 'NONE',
     isRecurrenceChecked: false,
   });
-  
+
   const [editingSlotId, setEditingSlotId] = useState<number | null>(null);
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -94,8 +104,8 @@ export default function DoctorAgenda() {
     setEditingSlotId(null);
     const endIdx = TIME_SLOTS.indexOf(end);
     const nextIdx = endIdx + 1;
-    let endStr = TIME_SLOTS[nextIdx] || '22:00';
-    
+    const endStr = TIME_SLOTS[nextIdx] || '22:00';
+
     setInitialModalData({
       date: isoDateString,
       start,
@@ -106,7 +116,8 @@ export default function DoctorAgenda() {
     setIsModalOpen(true);
   }, []);
 
-  const { selection, handleMouseDown, handleMouseEnter, handleMouseUp } = useGridSelection(onSelectRange);
+  const { selection, handleMouseDown, handleMouseEnter, handleMouseUp } =
+    useGridSelection(onSelectRange);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +125,7 @@ export default function DoctorAgenda() {
     const load = async () => {
       setLoadError(null);
       try {
-        const profResult = await getProfileMeSafe() as any;
+        const profResult = (await getProfileMeSafe()) as any;
         if (cancelled) return;
         if (profResult.notFound) {
           window.location.href = '/setup/doctor';
@@ -136,7 +147,7 @@ export default function DoctorAgenda() {
 
         // Carrega consultas confirmadas
         try {
-          const appts = await fetchAppointmentsMe() as any[];
+          const appts = (await fetchAppointmentsMe()) as any[];
           if (!cancelled) {
             setAppointments(appts || []);
           }
@@ -145,7 +156,9 @@ export default function DoctorAgenda() {
         }
       } catch {
         if (!cancelled) {
-          setLoadError('Não foi possível carregar a agenda. Verifique sua conexão e tente novamente.');
+          setLoadError(
+            'Não foi possível carregar a agenda. Verifique sua conexão e tente novamente.',
+          );
         }
       }
     };
@@ -179,28 +192,35 @@ export default function DoctorAgenda() {
     const finalRecurrence = data.isRecurrenceChecked ? data.recurrence : 'NONE';
 
     const dateObj = new Date(`${data.date}T12:00:00Z`);
-    const dayOfWeekStr = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][dateObj.getDay()];
+    const dayOfWeekStr = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][
+      dateObj.getDay()
+    ];
 
     if (editingSlotId) {
       updated = availability.map((s) =>
-        s.id === editingSlotId ? { 
-          ...s, 
-          date: data.date, 
-          day: dayOfWeekStr, 
-          start: data.start, 
-          end: data.end, 
-          recurrence: finalRecurrence 
-        } : s
+        s.id === editingSlotId
+          ? {
+              ...s,
+              date: data.date,
+              day: dayOfWeekStr,
+              start: data.start,
+              end: data.end,
+              recurrence: finalRecurrence,
+            }
+          : s,
       );
     } else {
-      updated = [...availability, { 
-        id: Date.now(), 
-        date: data.date, 
-        day: dayOfWeekStr, 
-        start: data.start, 
-        end: data.end, 
-        recurrence: finalRecurrence 
-      }];
+      updated = [
+        ...availability,
+        {
+          id: Date.now(),
+          date: data.date,
+          day: dayOfWeekStr,
+          start: data.start,
+          end: data.end,
+          recurrence: finalRecurrence,
+        },
+      ];
     }
     setIsSaving(true);
     try {
@@ -307,13 +327,16 @@ export default function DoctorAgenda() {
         <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-sky-600">Área do especialista</p>
           <h1 className="text-2xl font-bold text-slate-900">Agenda de Disponibilidade</h1>
-          <p className="mt-1 text-slate-600">Configure os horários em que você está disponível para atendimentos e gerencie seus modelos de consulta.</p>
+          <p className="mt-1 text-slate-600">
+            Configure os horários em que você está disponível para atendimentos e gerencie seus
+            modelos de consulta.
+          </p>
         </header>
 
         {profile && (
-          <ConsultationModelsManager 
-            initialModels={consultationModels} 
-            onModelsChange={setConsultationModels} 
+          <ConsultationModelsManager
+            initialModels={consultationModels}
+            onModelsChange={setConsultationModels}
           />
         )}
 
@@ -342,17 +365,17 @@ export default function DoctorAgenda() {
                 Novo horário
               </button>
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={navigateToday}
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition"
               >
                 Hoje
               </button>
-              
+
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={navigatePrev}
                   className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
                   aria-label="Semana anterior"
@@ -362,7 +385,7 @@ export default function DoctorAgenda() {
                 <span className="min-w-[140px] text-center text-base font-bold text-slate-800 capitalize">
                   {format(baseDate, 'MMMM yyyy', { locale: ptBR })}
                 </span>
-                <button 
+                <button
                   onClick={navigateNext}
                   className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
                   aria-label="Próxima semana"
@@ -374,7 +397,7 @@ export default function DoctorAgenda() {
           </div>
 
           <div className="overflow-x-auto">
-            <div 
+            <div
               ref={scrollContainerRef}
               className="relative max-h-[700px] min-w-[600px] overflow-y-auto select-none border-t border-slate-100"
               onMouseLeave={handleMouseUp}
@@ -388,16 +411,20 @@ export default function DoctorAgenda() {
                   const isToday = isSameDay(date, new Date());
                   const dayName = format(date, 'EEEE', { locale: ptBR });
                   const dayNum = format(date, 'd');
-                  
+
                   return (
                     <div
                       key={date.toISOString()}
                       className={`border-r border-slate-100 p-4 text-center transition ${isToday ? 'bg-sky-50/50' : 'bg-slate-50'}`}
                     >
-                      <div className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-sky-600' : 'text-slate-500'}`}>
-                        {dayName.split('-')[0].substring(0,3)}
+                      <div
+                        className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-sky-600' : 'text-slate-500'}`}
+                      >
+                        {dayName.split('-')[0].substring(0, 3)}
                       </div>
-                      <div className={`mt-1 text-xl font-bold ${isToday ? 'text-sky-600' : 'text-slate-900'}`}>
+                      <div
+                        className={`mt-1 text-xl font-bold ${isToday ? 'text-sky-600' : 'text-slate-900'}`}
+                      >
                         {dayNum}
                       </div>
                     </div>
@@ -421,24 +448,24 @@ export default function DoctorAgenda() {
                 {currentWeekDays.map((date) => {
                   const dateStr = format(date, 'yyyy-MM-dd');
                   const isToday = isSameDay(date, new Date());
-                  
+
                   // Cálculo da linha "Agora"
                   let nowTop = -1;
                   if (isToday) {
                     const hours = currentTime.getHours();
                     const minutes = currentTime.getMinutes();
-                    const totalMinutes = (hours * 60) + minutes;
+                    const totalMinutes = hours * 60 + minutes;
                     nowTop = (totalMinutes / 15) * SLOT_HEIGHT;
                   }
 
                   return (
-                    <div 
-                      key={dateStr} 
+                    <div
+                      key={dateStr}
                       className={`group relative col-span-1 border-r border-slate-100 ${isToday ? 'bg-sky-50/10' : ''}`}
                       onMouseUp={handleMouseUp}
                     >
                       {isToday && nowTop >= 0 && (
-                        <div 
+                        <div
                           className="absolute left-0 right-0 z-40 flex items-center pointer-events-none"
                           style={{ top: `${nowTop}px` }}
                         >
@@ -450,7 +477,7 @@ export default function DoctorAgenda() {
                       {TIME_SLOTS.map((time) => {
                         const hour = parseInt(time.split(':')[0]);
                         const isBusinessHour = hour >= 8 && hour < 19;
-                        
+
                         return (
                           <div
                             key={time}
@@ -468,9 +495,9 @@ export default function DoctorAgenda() {
                       {selectionBox?.day === dateStr && (
                         <div
                           className="absolute left-1 right-1 pointer-events-none rounded border-2 border-dashed border-sky-400 bg-sky-100/60 z-10 transition-all duration-75"
-                          style={{ 
-                            top: `${selectionBox.top}px`, 
-                            height: `${selectionBox.height}px` 
+                          style={{
+                            top: `${selectionBox.top}px`,
+                            height: `${selectionBox.height}px`,
                           }}
                         />
                       )}
@@ -481,33 +508,39 @@ export default function DoctorAgenda() {
                           const startIdx = TIME_SLOTS.indexOf(slot.start);
                           const endIdx = TIME_SLOTS.indexOf(slot.end);
                           if (startIdx === -1) return null;
-                          
+
                           const top = startIdx * SLOT_HEIGHT;
-                          const height = Math.max(SLOT_HEIGHT - 4, (endIdx - startIdx) * SLOT_HEIGHT - 4);
-                          
+                          const height = Math.max(
+                            SLOT_HEIGHT - 4,
+                            (endIdx - startIdx) * SLOT_HEIGHT - 4,
+                          );
+
                           return (
                             <div
                               key={`${slot.id}-${dateStr}`}
                               onClick={() => handleEditSlot(slot, dateStr)}
                               onKeyDown={(e) => e.key === 'Enter' && handleEditSlot(slot, dateStr)}
                               className="group/slot absolute left-0.5 right-0.5 cursor-pointer overflow-hidden rounded-md border border-sky-200 bg-sky-100/90 p-1.5 shadow-sm z-20 hover:bg-sky-200/90 transition-all hover:shadow-md ring-1 ring-inset ring-sky-300/30"
-                              style={{ 
-                                top: `${top + 1}px`, 
+                              style={{
+                                top: `${top + 1}px`,
                                 height: `${height}px`,
                                 borderLeftWidth: '4px',
-                                borderLeftColor: '#0284c7' // sky-600
+                                borderLeftColor: '#0284c7', // sky-600
                               }}
                               role="button"
                               tabIndex={0}
                               aria-label={`Editar disponibilidade ${format(date, 'dd/MM')} ${slot.start}-${slot.end}`}
                             >
                               <div className="flex items-start justify-between gap-1">
-                                <p className="text-[9px] font-bold leading-none text-sky-900 truncate">Disponível</p>
+                                <p className="text-[9px] font-bold leading-none text-sky-900 truncate">
+                                  Disponível
+                                </p>
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const isRecurring = !!slot.recurrence && slot.recurrence !== 'NONE';
+                                    const isRecurring =
+                                      !!slot.recurrence && slot.recurrence !== 'NONE';
                                     if (isRecurring) {
                                       setSlotToDelete({ id: slot.id, targetDate: dateStr });
                                       setIsDeleteConfirmOpen(true);
@@ -534,17 +567,17 @@ export default function DoctorAgenda() {
                         .map((appt) => {
                           const start = parseISO(appt.date);
                           const end = addMinutes(start, appt.durationMinutes);
-                          
+
                           const startStr = format(start, 'HH:mm');
                           const endStr = format(end, 'HH:mm');
-                          
+
                           // Cálculo robusto de posição baseado em minutos do dia
-                          const startTotalMinutes = (start.getHours() * 60) + start.getMinutes();
+                          const startTotalMinutes = start.getHours() * 60 + start.getMinutes();
                           const top = (startTotalMinutes / 15) * SLOT_HEIGHT;
-                          
+
                           const durationSlots = appt.durationMinutes / 15;
                           const height = durationSlots * SLOT_HEIGHT - 4;
-                          
+
                           return (
                             <div
                               key={`appt-${appt.id}`}
@@ -557,11 +590,11 @@ export default function DoctorAgenda() {
                                 setIsMedicalRecordOpen(true);
                               }}
                               className="absolute left-0.5 right-0.5 overflow-hidden rounded-md border border-emerald-200 bg-emerald-100/90 p-1.5 shadow-sm z-30 ring-1 ring-inset ring-emerald-300/30 cursor-pointer hover:bg-emerald-200/90 transition-all"
-                              style={{ 
-                                top: `${top + 1}px`, 
+                              style={{
+                                top: `${top + 1}px`,
                                 height: `${height}px`,
                                 borderLeftWidth: '4px',
-                                borderLeftColor: '#059669' // emerald-600
+                                borderLeftColor: '#059669', // emerald-600
                               }}
                               title={`Consulta: ${appt.patient?.name || 'Paciente'} (Clique para abrir prontuário)`}
                             >
@@ -570,7 +603,7 @@ export default function DoctorAgenda() {
                                   {appt.patient?.name || 'Consulta'}
                                 </p>
                                 <div className="flex gap-1">
-                                  <button 
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedPatientForRecord({
@@ -585,7 +618,7 @@ export default function DoctorAgenda() {
                                   >
                                     <FileText size={10} />
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedPatientForRecord({

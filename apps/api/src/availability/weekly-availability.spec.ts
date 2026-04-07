@@ -25,7 +25,16 @@ describe('weekly-availability', () => {
 
     it('parseia slots com day, start e end', () => {
       const raw = JSON.stringify([{ day: 'Segunda', start: '08:00', end: '09:00', id: 1 }]);
-      expect(parseAvailabilityJson(raw)).toEqual([{ day: 'Segunda', start: '08:00', end: '09:00', id: 1, date: undefined, recurrence: undefined }]);
+      expect(parseAvailabilityJson(raw)).toEqual([
+        {
+          day: 'Segunda',
+          start: '08:00',
+          end: '09:00',
+          id: 1,
+          date: undefined,
+          recurrence: undefined,
+        },
+      ]);
     });
   });
 
@@ -47,10 +56,16 @@ describe('weekly-availability', () => {
     const zone = 'America/Sao_Paulo';
 
     it('expande slot de Segunda para a segunda-feira dentro do intervalo', () => {
-      const slots = [{ day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'WEEKLY' }];
+      const slots = [
+        { day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'WEEKLY' as const },
+      ];
       // 6 abr 2026 é segunda-feira (America/Sao_Paulo)
-      const from = DateTime.fromObject({ year: 2026, month: 4, day: 4 }, { zone }).startOf('day').toJSDate();
-      const to = DateTime.fromObject({ year: 2026, month: 4, day: 12 }, { zone }).endOf('day').toJSDate();
+      const from = DateTime.fromObject({ year: 2026, month: 4, day: 4 }, { zone })
+        .startOf('day')
+        .toJSDate();
+      const to = DateTime.fromObject({ year: 2026, month: 4, day: 12 }, { zone })
+        .endOf('day')
+        .toJSDate();
 
       const expanded = expandWeeklySlotsInRange(from, to, slots, zone);
 
@@ -63,9 +78,15 @@ describe('weekly-availability', () => {
     });
 
     it('expande slot com data específica (evento único)', () => {
-      const slots = [{ date: '2026-04-15', start: '08:00', end: '09:00', recurrence: 'NONE' }];
-      const from = DateTime.fromObject({ year: 2026, month: 4, day: 10 }, { zone }).startOf('day').toJSDate();
-      const to = DateTime.fromObject({ year: 2026, month: 4, day: 20 }, { zone }).endOf('day').toJSDate();
+      const slots = [
+        { date: '2026-04-15', start: '08:00', end: '09:00', recurrence: 'NONE' as const },
+      ];
+      const from = DateTime.fromObject({ year: 2026, month: 4, day: 10 }, { zone })
+        .startOf('day')
+        .toJSDate();
+      const to = DateTime.fromObject({ year: 2026, month: 4, day: 20 }, { zone })
+        .endOf('day')
+        .toJSDate();
 
       const expanded = expandWeeklySlotsInRange(from, to, slots as any, zone);
 
@@ -75,9 +96,15 @@ describe('weekly-availability', () => {
     });
 
     it('expande slot com data e recorrência DAILY a partir da data', () => {
-      const slots = [{ date: '2026-04-15', start: '08:00', end: '09:00', recurrence: 'DAILY' }];
-      const from = DateTime.fromObject({ year: 2026, month: 4, day: 10 }, { zone }).startOf('day').toJSDate();
-      const to = DateTime.fromObject({ year: 2026, month: 4, day: 20 }, { zone }).endOf('day').toJSDate();
+      const slots = [
+        { date: '2026-04-15', start: '08:00', end: '09:00', recurrence: 'DAILY' as const },
+      ];
+      const from = DateTime.fromObject({ year: 2026, month: 4, day: 10 }, { zone })
+        .startOf('day')
+        .toJSDate();
+      const to = DateTime.fromObject({ year: 2026, month: 4, day: 20 }, { zone })
+        .endOf('day')
+        .toJSDate();
 
       const expanded = expandWeeklySlotsInRange(from, to, slots as any, zone);
 
@@ -88,9 +115,15 @@ describe('weekly-availability', () => {
     });
 
     it('expande slot DAILY para todos os dias no intervalo', () => {
-      const slots = [{ day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'DAILY' }];
-      const from = DateTime.fromObject({ year: 2026, month: 4, day: 6 }, { zone }).startOf('day').toJSDate();
-      const to = DateTime.fromObject({ year: 2026, month: 4, day: 8 }, { zone }).endOf('day').toJSDate();
+      const slots = [
+        { day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'DAILY' as const },
+      ];
+      const from = DateTime.fromObject({ year: 2026, month: 4, day: 6 }, { zone })
+        .startOf('day')
+        .toJSDate();
+      const to = DateTime.fromObject({ year: 2026, month: 4, day: 8 }, { zone })
+        .endOf('day')
+        .toJSDate();
 
       const expanded = expandWeeklySlotsInRange(from, to, slots, zone);
 
@@ -99,10 +132,16 @@ describe('weekly-availability', () => {
     });
 
     it('expande slot WEEKDAYS apenas para dias de semana', () => {
-      const slots = [{ day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'WEEKDAYS' }];
+      const slots = [
+        { day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'WEEKDAYS' as const },
+      ];
       // Sábado 4 a Segunda 6
-      const from = DateTime.fromObject({ year: 2026, month: 4, day: 4 }, { zone }).startOf('day').toJSDate();
-      const to = DateTime.fromObject({ year: 2026, month: 4, day: 6 }, { zone }).endOf('day').toJSDate();
+      const from = DateTime.fromObject({ year: 2026, month: 4, day: 4 }, { zone })
+        .startOf('day')
+        .toJSDate();
+      const to = DateTime.fromObject({ year: 2026, month: 4, day: 6 }, { zone })
+        .endOf('day')
+        .toJSDate();
 
       const expanded = expandWeeklySlotsInRange(from, to, slots, zone);
 
@@ -113,10 +152,16 @@ describe('weekly-availability', () => {
     });
 
     it('expande slot BIWEEKLY apenas em semanas alternadas (paridade)', () => {
-      const slots = [{ day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'BIWEEKLY' }];
+      const slots = [
+        { day: 'Segunda', start: '08:00', end: '09:00', recurrence: 'BIWEEKLY' as const },
+      ];
       // Semana 15 (Segunda 6 Abr) e Semana 16 (Segunda 13 Abr)
-      const from = DateTime.fromObject({ year: 2026, month: 4, day: 5 }, { zone }).startOf('day').toJSDate();
-      const to = DateTime.fromObject({ year: 2026, month: 4, day: 14 }, { zone }).endOf('day').toJSDate();
+      const from = DateTime.fromObject({ year: 2026, month: 4, day: 5 }, { zone })
+        .startOf('day')
+        .toJSDate();
+      const to = DateTime.fromObject({ year: 2026, month: 4, day: 14 }, { zone })
+        .endOf('day')
+        .toJSDate();
 
       const expanded = expandWeeklySlotsInRange(from, to, slots, zone);
 
@@ -143,7 +188,9 @@ describe('weekly-availability', () => {
     });
 
     it('rejeita JSON inválido', () => {
-      expect(() => assertValidDoctorAvailabilityJson('not json')).toThrow(InvalidAvailabilityPayloadError);
+      expect(() => assertValidDoctorAvailabilityJson('not json')).toThrow(
+        InvalidAvailabilityPayloadError,
+      );
     });
 
     it('rejeita quando item não tem day/start/end', () => {

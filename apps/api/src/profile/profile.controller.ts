@@ -10,13 +10,10 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  Inject,
-  forwardRef,
   Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ProfileService } from './profile.service';
-import { PaymentService } from '../payment/payment.service';
 import { SetupDoctorDto } from './dto/setup-doctor.dto';
 import { SetupPatientDto } from './dto/setup-patient.dto';
 import { UpdateAvailabilityDto } from './dto/update-availability.dto';
@@ -25,6 +22,13 @@ import {
   AvailableSlotsService,
   DEFAULT_DOCTOR_TIME_ZONE,
 } from '../availability/available-slots.service';
+import { AuthenticatedRequest } from '../auth/authenticated-request';
+
+interface ConsultationModelInput {
+  name: string;
+  durationMinutes: number;
+  price: number;
+}
 
 @Controller('profile')
 export class ProfileController {
@@ -35,8 +39,6 @@ export class ProfileController {
   constructor(
     private profileService: ProfileService,
     private availableSlotsService: AvailableSlotsService,
-    @Inject(forwardRef(() => PaymentService))
-    private paymentService: PaymentService,
   ) {}
 
   @Get('doctors')
@@ -85,7 +87,7 @@ export class ProfileController {
 
   @Post('doctor/setup')
   @UseGuards(AuthGuard('jwt'))
-  async setupDoctor(@Request() req, @Body() data: SetupDoctorDto) {
+  async setupDoctor(@Request() req: AuthenticatedRequest, @Body() data: SetupDoctorDto) {
     if (req.user?.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem configurar perfil médico');
     }
@@ -94,7 +96,7 @@ export class ProfileController {
 
   @Post('patient/setup')
   @UseGuards(AuthGuard('jwt'))
-  async setupPatient(@Request() req, @Body() data: SetupPatientDto) {
+  async setupPatient(@Request() req: AuthenticatedRequest, @Body() data: SetupPatientDto) {
     if (req.user?.role !== 'PATIENT') {
       throw new ForbiddenException('Apenas pacientes podem configurar perfil de paciente');
     }
@@ -103,13 +105,11 @@ export class ProfileController {
 
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
-  async getProfile(@Request() req) {
-    let profile;
-    if (req.user.role === 'DOCTOR') {
-      profile = await this.profileService.getDoctorProfile(req.user.userId);
-    } else {
-      profile = await this.profileService.getPatientProfile(req.user.userId);
-    }
+  async getProfile(@Request() req: AuthenticatedRequest) {
+    const profile =
+      req.user.role === 'DOCTOR'
+        ? await this.profileService.getDoctorProfile(req.user.userId)
+        : await this.profileService.getPatientProfile(req.user.userId);
 
     if (!profile) {
       throw new NotFoundException('Perfil não encontrado. Por favor, complete o setup.');
@@ -120,7 +120,7 @@ export class ProfileController {
 
   @Post('doctor/availability')
   @UseGuards(AuthGuard('jwt'))
-  async setAvailability(@Request() req, @Body() body: UpdateAvailabilityDto) {
+  async setAvailability(@Request() req: AuthenticatedRequest, @Body() body: UpdateAvailabilityDto) {
     if (req.user?.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem definir disponibilidade');
     }
@@ -129,7 +129,10 @@ export class ProfileController {
 
   @Post('doctor/consultation-models')
   @UseGuards(AuthGuard('jwt'))
-  async createConsultationModel(@Request() req, @Body() data: any) {
+  async createConsultationModel(
+    @Request() req: AuthenticatedRequest,
+    @Body() data: ConsultationModelInput,
+  ) {
     if (req.user?.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem criar modelos de consulta');
     }
@@ -138,7 +141,11 @@ export class ProfileController {
 
   @Post('doctor/consultation-models/:id')
   @UseGuards(AuthGuard('jwt'))
-  async updateConsultationModel(@Request() req, @Param('id') idParam: string, @Body() data: any) {
+  async updateConsultationModel(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') idParam: string,
+    @Body() data: ConsultationModelInput,
+  ) {
     if (req.user?.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem atualizar modelos de consulta');
     }
@@ -149,7 +156,10 @@ export class ProfileController {
 
   @Post('doctor/consultation-models/:id/delete')
   @UseGuards(AuthGuard('jwt'))
-  async deleteConsultationModel(@Request() req, @Param('id') idParam: string) {
+  async deleteConsultationModel(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') idParam: string,
+  ) {
     if (req.user?.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem excluir modelos de consulta');
     }

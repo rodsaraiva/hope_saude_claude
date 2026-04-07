@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { PaymentService } from '../payment/payment.service';
 import { CryptographyService } from '../common/cryptography.service';
@@ -14,7 +14,6 @@ export class ProfileService {
 
   constructor(
     private prisma: PrismaService,
-    @Inject(forwardRef(() => PaymentService))
     private paymentService: PaymentService,
     private readonly crypto: CryptographyService,
   ) {}

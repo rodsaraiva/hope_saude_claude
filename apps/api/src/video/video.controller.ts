@@ -2,17 +2,21 @@ import { Controller, Get, Param, UseGuards, Request, ForbiddenException } from '
 import { AuthGuard } from '@nestjs/passport';
 import { VideoService } from './video.service';
 import { AppointmentService } from '../appointment/appointment.service';
+import { AuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('video')
 @UseGuards(AuthGuard('jwt'))
 export class VideoController {
   constructor(
     private videoService: VideoService,
-    private appointmentService: AppointmentService
+    private appointmentService: AppointmentService,
   ) {}
 
   @Get('token/:appointmentId')
-  async getToken(@Param('appointmentId') appointmentId: string, @Request() req) {
+  async getToken(
+    @Param('appointmentId') appointmentId: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     const appt = await this.appointmentService.findById(Number(appointmentId));
 
     if (!appt || appt.status !== 'CONFIRMED') {
@@ -21,7 +25,7 @@ export class VideoController {
 
     const payload = await this.videoService.generateToken(
       `room-${appointmentId}`,
-      req.user.email
+      req.user.email ?? `user-${req.user.userId}`,
     );
 
     return {

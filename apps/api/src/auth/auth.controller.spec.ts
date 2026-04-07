@@ -35,7 +35,12 @@ describe('AuthController', () => {
 
   describe('register', () => {
     it('should return access_token like login (cadastro com sessão)', async () => {
-      const dto = { email: 'test@test.com', password: '123456', name: 'Test', role: 'PATIENT' as const };
+      const dto = {
+        email: 'test@test.com',
+        password: '123456',
+        name: 'Test',
+        role: 'PATIENT' as const,
+      };
       authService.registerAndLogin.mockResolvedValue({ access_token: 'jwt_token' });
 
       const result = await controller.register(dto);
@@ -61,9 +66,9 @@ describe('AuthController', () => {
     it('should throw UnauthorizedException if credentials are invalid', async () => {
       authService.validateUser.mockResolvedValue(null);
 
-      await expect(
-        controller.login({ email: 'test@test.com', password: 'wrong' })
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.login({ email: 'test@test.com', password: 'wrong' })).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       expect(authService.validateUser).toHaveBeenCalledWith('test@test.com', 'wrong');
       expect(authService.login).not.toHaveBeenCalled();
@@ -84,15 +89,13 @@ describe('AuthController', () => {
     it('should throw NotFoundException if user does not exist', async () => {
       authService.getPublicUserById.mockResolvedValue(null);
 
-      await expect(
-        controller.me({ user: { userId: 999 } })
-      ).rejects.toThrow(NotFoundException);
+      await expect(controller.me({ user: { userId: 999 } })).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('getDoctorProfile / getPatientProfile (roles test)', () => {
     it('should return success message for doctor profile endpoint', () => {
-      const result = controller.getDoctorProfile({ user: { userId: 1, role: 'DOCTOR' } });
+      const result = controller.getDoctorProfile({ user: { userId: 1, role: 'DOCTOR' } } as any);
       expect(result).toEqual({
         message: 'Acesso concedido ao perfil médico',
         user: { userId: 1, role: 'DOCTOR' },
@@ -100,7 +103,7 @@ describe('AuthController', () => {
     });
 
     it('should return success message for patient profile endpoint', () => {
-      const result = controller.getPatientProfile({ user: { userId: 2, role: 'PATIENT' } });
+      const result = controller.getPatientProfile({ user: { userId: 2, role: 'PATIENT' } } as any);
       expect(result).toEqual({
         message: 'Acesso concedido ao perfil do paciente',
         user: { userId: 2, role: 'PATIENT' },
