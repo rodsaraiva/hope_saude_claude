@@ -5,6 +5,8 @@ import { CryptographyService } from './cryptography.service';
 describe('CryptographyService', () => {
   let service: CryptographyService;
 
+  const TEST_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'; // 32 bytes hex
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -12,7 +14,11 @@ describe('CryptographyService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('test-secret'),
+            get: jest.fn().mockImplementation((key: string) => {
+              if (key === 'JWT_SECRET') return 'test-secret';
+              if (key === 'DATA_ENCRYPTION_KEY') return TEST_ENCRYPTION_KEY;
+              return undefined;
+            }),
           },
         },
       ],
@@ -38,10 +44,10 @@ describe('CryptographyService', () => {
   it('deve gerar uma assinatura válida que pode ser verificada', () => {
     const content = 'Relatório médico importante';
     const metadata = 'doctorId:1|date:2026-04-03';
-    
+
     const signature = service.sign(content, metadata);
     expect(signature).toBeDefined();
-    
+
     const isValid = service.verify(content, metadata, signature);
     expect(isValid).toBe(true);
   });
@@ -50,7 +56,7 @@ describe('CryptographyService', () => {
     const content = 'Original';
     const metadata = 'm';
     const signature = service.sign(content, metadata);
-    
+
     const isValid = service.verify('Modificado', metadata, signature);
     expect(isValid).toBe(false);
   });
@@ -59,8 +65,61 @@ describe('CryptographyService', () => {
     const content = 'Original';
     const metadata = 'm1';
     const signature = service.sign(content, metadata);
-    
+
     const isValid = service.verify(content, 'm2', signature);
     expect(isValid).toBe(false);
+  });
+
+  describe('encrypt/decrypt (AES-256-GCM)', () => {
+    it('faz roundtrip: decrypt(encrypt(x)) === x', () => {
+      const plain = '123.456.789-00';
+      const cipher = service.encrypt(plain);
+      expect(cipher).not.toBe(plain);
+      expect(service.decrypt(cipher)).toBe(plain);
+    });
+
+    it('produz ciphertexts diferentes para o mesmo plaintext (IV aleatório)', () => {
+      const plain = 'segredo';
+      const a = service.encrypt(plain);
+      const b = service.encrypt(plain);
+      expect(a).not.toBe(b);
+      expect(service.decrypt(a)).toBe(plain);
+      expect(service.decrypt(b)).toBe(plain);
+    });
+
+    it('decrypt com ciphertext corrompido lança erro', () => {
+      const cipher = service.encrypt('xyz');
+      const corrupted = cipher.slice(0, -4) + 'aaaa';
+      expect(() => service.decrypt(corrupted)).toThrow();
+    });
+
+    it('preserva null/undefined sem alteração', () => {
+      expect(service.encryptNullable(null)).toBeNull();
+      expect(service.encryptNullable(undefined)).toBeNull();
+      expect(service.decryptNullable(null)).toBeNull();
+      expect(service.decryptNullable(undefined)).toBeNull();
+    });
+
+    it('encryptNullable + decryptNullable fazem roundtrip para strings válidas', () => {
+      const plain = 'abc';
+      const cipher = service.encryptNullable(plain);
+      expect(cipher).not.toBe(plain);
+      expect(service.decryptNullable(cipher)).toBe(plain);
+    });
+
+    it('lança erro quando DATA_ENCRYPTION_KEY está ausente', async () => {
+      const moduleNoKey = await Test.createTestingModule({
+        providers: [
+          CryptographyService,
+          {
+            provide: ConfigService,
+            useValue: { get: jest.fn().mockReturnValue(undefined) },
+          },
+        ],
+      }).compile();
+
+      const svc = moduleNoKey.get<CryptographyService>(CryptographyService);
+      expect(() => svc.encrypt('x')).toThrow(/DATA_ENCRYPTION_KEY/);
+    });
   });
 });

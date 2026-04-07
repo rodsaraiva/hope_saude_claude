@@ -7,9 +7,32 @@
   "scripts": {
     "dev:api": "npm run dev --workspace=@hope-saude/api",
     "dev:web": "npm run dev --workspace=@hope-saude/web",
-    "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\""
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
+    "lint": "eslint \"apps/**/src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"apps/**/src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"apps/**/src/**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"apps/**/src/**/*.{ts,tsx,json,md}\"",
+    "test": "npm test --workspace=@hope-saude/api",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "apps/**/src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "apps/**/src/**/*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.8.1"
   }
 }

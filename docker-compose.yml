@@ -1,0 +1,36 @@
+# Docker Compose para desenvolvimento local do hope_saude.
+# Para produção no VPS Swarm, ver docker-compose.prod.yml.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: hope-saude/api:local
+    env_file:
+      - apps/api/.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - api_data:/app/prisma
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: hope-saude/web:local
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:3000
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+volumes:
+  api_data:

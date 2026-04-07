@@ -16,6 +16,7 @@ describe('PrescriptionService', () => {
     },
     appointment: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -80,21 +81,68 @@ describe('PrescriptionService', () => {
       patientId: 2,
     });
 
-    await expect(service.create({
+    await expect(
+      service.create({
+        doctorId: 1,
+        patientId: 2,
+        appointmentId: 10,
+        medications: '[]',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('não deve criar receita se o appointmentId não corresponder ao paciente', async () => {
+    mockPrisma.appointment.findUnique.mockResolvedValue({
+      id: 10,
+      doctorId: 1,
+      patientId: 5, // outro paciente
+    });
+
+    await expect(
+      service.create({
+        doctorId: 1,
+        patientId: 2,
+        appointmentId: 10,
+        medications: '[]',
+      }),
+    ).rejects.toThrow();
+    expect(mockPrisma.prescription.create).not.toHaveBeenCalled();
+  });
+
+  it('sem appointmentId: rejeita quando médico nunca atendeu esse paciente (RBAC)', async () => {
+    mockPrisma.appointment.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create({
+        doctorId: 1,
+        patientId: 2,
+        medications: '[]',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(mockPrisma.prescription.create).not.toHaveBeenCalled();
+  });
+
+  it('sem appointmentId: permite quando já existe appointment prévio doctor↔patient', async () => {
+    mockPrisma.appointment.findFirst.mockResolvedValue({ id: 99, doctorId: 1, patientId: 2 });
+    mockPrisma.prescription.create.mockResolvedValue({ id: 1 });
+
+    await service.create({
       doctorId: 1,
       patientId: 2,
-      appointmentId: 10,
       medications: '[]',
-    })).rejects.toThrow(ForbiddenException);
+    });
+
+    expect(mockPrisma.appointment.findFirst).toHaveBeenCalledWith({
+      where: { doctorId: 1, patientId: 2 },
+    });
+    expect(mockPrisma.prescription.create).toHaveBeenCalled();
   });
 
   it('deve listar receitas de um paciente para um médico específico', async () => {
     const doctorId = 1;
     const patientId = 2;
 
-    mockPrisma.prescription.findMany.mockResolvedValue([
-      { id: 1, medications: '[]' },
-    ]);
+    mockPrisma.prescription.findMany.mockResolvedValue([{ id: 1, medications: '[]' }]);
 
     const result = await service.findAllByPatient(doctorId, patientId);
 

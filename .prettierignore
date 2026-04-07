@@ -1,0 +1,8 @@
+node_modules
+dist
+.next
+out
+coverage
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+package-lock.json

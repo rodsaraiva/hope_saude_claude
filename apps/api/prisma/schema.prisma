@@ -61,6 +61,8 @@ model PatientProfile {
   medicalHistory   String?
   /// Cliente Asaas vinculado ao salvar CPF/celular (acelera checkout PIX/cartão).
   asaasCustomerId  String?
+
+  @@index([asaasCustomerId])
 }
 
 model Appointment {
@@ -80,6 +82,10 @@ model Appointment {
 
   medicalRecord MedicalRecord?
   prescriptions Prescription[]
+
+  @@index([doctorId, date])
+  @@index([patientId, date])
+  @@index([date])
 }
 
 model MedicalRecord {
@@ -104,16 +110,21 @@ model MedicalRecord {
   signerUserId  Int?      // ID do médico que assinou o documento
 
   audits MedicalRecordAudit[]
+
+  @@index([patientId, createdAt])
+  @@index([doctorId, patientId])
 }
 
 model MedicalRecordAudit {
   id              Int           @id @default(autoincrement())
   medicalRecordId Int
-  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id])
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
   content         String
   changedByUserId Int
   changedAt       DateTime      @default(now())
   reason          String?
+
+  @@index([medicalRecordId])
 }
 
 model Prescription {
@@ -136,6 +147,9 @@ model Prescription {
   signature     String?
   signatureDate DateTime?
   signedHash    String?
+
+  @@index([patientId, createdAt])
+  @@index([doctorId, patientId])
 }
 
 /// Pagamento Asaas iniciado antes da consulta existir no banco (checkout único).
@@ -149,4 +163,7 @@ model PendingCheckout {
   durationMinutes     Int      @default(60)
   price               Float    @default(150.0)
   createdAt           DateTime @default(now())
+
+  @@index([doctorId, date])
+  @@index([patientId])
 }

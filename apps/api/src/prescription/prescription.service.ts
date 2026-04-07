@@ -6,7 +6,7 @@ import { SignatureProvider } from '../common/signature.provider';
 export class PrescriptionService {
   constructor(
     private prisma: PrismaService,
-    @Inject('SignatureProvider') private signatureProvider: SignatureProvider
+    @Inject('SignatureProvider') private signatureProvider: SignatureProvider,
   ) {}
 
   async create(data: {
@@ -27,6 +27,22 @@ export class PrescriptionService {
 
       if (appointment.doctorId !== data.doctorId) {
         throw new ForbiddenException('Este agendamento não pertence a este médico');
+      }
+
+      if (appointment.patientId !== data.patientId) {
+        throw new ForbiddenException('Paciente não corresponde ao agendamento');
+      }
+    } else {
+      // Sem appointmentId: exige que haja ao menos um appointment prévio
+      // entre este médico e este paciente (RBAC doctor↔patient).
+      const hasRelation = await this.prisma.appointment.findFirst({
+        where: { doctorId: data.doctorId, patientId: data.patientId },
+      });
+
+      if (!hasRelation) {
+        throw new ForbiddenException(
+          'Você não possui agendamentos com este paciente para criar uma receita',
+        );
       }
     }
 
@@ -70,7 +86,11 @@ export class PrescriptionService {
     return prescription;
   }
 
-  async update(doctorId: number, prescriptionId: number, data: { medications: string; observations?: string }) {
+  async update(
+    doctorId: number,
+    prescriptionId: number,
+    data: { medications: string; observations?: string },
+  ) {
     const prescription = await this.findOne(doctorId, prescriptionId);
 
     if (prescription.status === 'SIGNED') {

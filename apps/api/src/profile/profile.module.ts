@@ -5,11 +5,12 @@ import { PrismaService } from '../prisma.service';
 import { PaymentModule } from '../payment/payment.module';
 import { AppointmentModule } from '../appointment/appointment.module';
 import { AvailableSlotsService } from '../availability/available-slots.service';
+import { CryptographyService } from '../common/cryptography.service';
 
 @Module({
   imports: [forwardRef(() => PaymentModule), AppointmentModule],
   controllers: [ProfileController],
-  providers: [ProfileService, PrismaService, AvailableSlotsService],
+  providers: [ProfileService, PrismaService, AvailableSlotsService, CryptographyService],
   exports: [ProfileService],
 })
 export class ProfileModule {}

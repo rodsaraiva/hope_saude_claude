@@ -1,0 +1,57 @@
+# Stack para Docker Swarm no VPS srv969720 (hospedando atrás do Traefik existente).
+# Uso: docker stack deploy -c docker-compose.prod.yml hope_saude
+#
+# Pré-requisitos (executar UMA vez no VPS antes do primeiro deploy):
+#   1. Criar diretório de dados:
+#        sudo mkdir -p /opt/hope_saude/data
+#   2. Criar /opt/hope_saude/api.env com todas as variáveis (baseado em apps/api/.env.example)
+#   3. Garantir rede externa do Traefik:
+#        docker network inspect traefik-public || docker network create --driver overlay traefik-public
+#   4. Apontar DNS: api.hope.srv969720.hstgr.cloud + app.hope.srv969720.hstgr.cloud
+#
+# NOTA: env_file abaixo referencia um path absoluto que existe APENAS no VPS.
+# `docker compose config` local vai falhar — isso é esperado. Use só em produção.
+services:
+  api:
+    image: hope-saude/api:latest
+    env_file:
+      - /opt/hope_saude/api.env
+    volumes:
+      - /opt/hope_saude/data:/app/prisma
+    networks:
+      - traefik-public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.http.routers.hope-api.rule=Host(`api.hope.srv969720.hstgr.cloud`)"
+        - "traefik.http.routers.hope-api.entrypoints=websecure"
+        - "traefik.http.routers.hope-api.tls.certresolver=letsencrypt"
+        - "traefik.http.services.hope-api.loadbalancer.server.port=3000"
+
+  web:
+    image: hope-saude/web:latest
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.hope.srv969720.hstgr.cloud
+    networks:
+      - traefik-public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.http.routers.hope-web.rule=Host(`app.hope.srv969720.hstgr.cloud`)"
+        - "traefik.http.routers.hope-web.entrypoints=websecure"
+        - "traefik.http.routers.hope-web.tls.certresolver=letsencrypt"
+        - "traefik.http.services.hope-web.loadbalancer.server.port=3001"
+
+networks:
+  traefik-public:
+    external: true
