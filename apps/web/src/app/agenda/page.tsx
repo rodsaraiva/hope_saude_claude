@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Clock, Loader2, Trash2, FileText, Pill } from 'lucide-react';
 import { AgendaHeader } from '@/components/agenda/AgendaHeader';
 import { CalendarToolbar } from '@/components/agenda/CalendarToolbar';
+import { WeeklyDaysHeader } from '@/components/agenda/WeeklyDaysHeader';
+import { TimeSlotColumn } from '@/components/agenda/TimeSlotColumn';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import {
@@ -350,48 +352,11 @@ export default function DoctorAgenda() {
               className="relative max-h-[700px] min-w-[600px] overflow-y-auto select-none border-t border-slate-100"
               onMouseLeave={handleMouseUp}
             >
-              {/* Header de dias (Sticky) */}
-              <div className="sticky top-0 z-50 grid grid-cols-8 border-b border-slate-100 bg-white shadow-sm">
-                <div className="border-r border-slate-100 p-4 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-50">
-                  Hora
-                </div>
-                {currentWeekDays.map((date) => {
-                  const isToday = isSameDay(date, new Date());
-                  const dayName = format(date, 'EEEE', { locale: ptBR });
-                  const dayNum = format(date, 'd');
-
-                  return (
-                    <div
-                      key={date.toISOString()}
-                      className={`border-r border-slate-100 p-4 text-center transition ${isToday ? 'bg-sky-50/50' : 'bg-slate-50'}`}
-                    >
-                      <div
-                        className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-sky-600' : 'text-slate-500'}`}
-                      >
-                        {dayName.split('-')[0].substring(0, 3)}
-                      </div>
-                      <div
-                        className={`mt-1 text-xl font-bold ${isToday ? 'text-sky-600' : 'text-slate-900'}`}
-                      >
-                        {dayNum}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <WeeklyDaysHeader days={currentWeekDays} />
 
               {/* Grid Body */}
               <div className="relative grid grid-cols-8">
-                <div className="col-span-1 border-r border-slate-100 bg-slate-50/30">
-                  {TIME_SLOTS.map((time) => (
-                    <div
-                      key={time}
-                      className="h-4 border-b border-slate-100/50 p-1 pr-4 text-right text-[10px] font-medium text-slate-400"
-                    >
-                      {time.endsWith(':00') ? time : ''}
-                    </div>
-                  ))}
-                </div>
+                <TimeSlotColumn slots={TIME_SLOTS} />
 
                 {currentWeekDays.map((date) => {
                   const dateStr = format(date, 'yyyy-MM-dd');
