@@ -18,7 +18,12 @@ function initialsFromName(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export default function ProfileAvatar({ userId, displayName, size = 'lg', readOnly = false }: Props) {
+export default function ProfileAvatar({
+  userId,
+  displayName,
+  size = 'lg',
+  readOnly = false,
+}: Props) {
   const inputId = useId();
   const [src, setSrc] = useState<string | null>(null);
 
@@ -50,7 +55,6 @@ export default function ProfileAvatar({ userId, displayName, size = 'lg', readOn
         className={`relative overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-sky-100 to-teal-100 shadow-lg ring-2 ring-slate-100 ${dim} flex items-center justify-center font-bold text-sky-800`}
       >
         {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt="" className="h-full w-full object-cover" />
         ) : (
           <span aria-hidden>{initialsFromName(displayName)}</span>

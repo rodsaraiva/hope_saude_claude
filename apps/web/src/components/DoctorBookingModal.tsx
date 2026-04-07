@@ -38,14 +38,19 @@ function defaultRangeIso(): { from: string; to: string } {
 export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
   const models = doctor.consultationModels || [];
   const hasModels = models.length > 0;
-  const [selectedModelId, setSelectedModelId] = useState<number | null>(hasModels ? models[0].id : null);
-  
+  const [selectedModelId, setSelectedModelId] = useState<number | null>(
+    hasModels ? models[0].id : null,
+  );
+
   const [data, setData] = useState<AvailableSlotsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
 
-  const selectedModel = useMemo(() => models.find(m => m.id === selectedModelId), [models, selectedModelId]);
+  const selectedModel = useMemo(
+    () => models.find((m) => m.id === selectedModelId),
+    [models, selectedModelId],
+  );
   const durationMinutes = selectedModel?.durationMinutes;
 
   useEffect(() => {
@@ -108,22 +113,23 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
   }, [onClose]);
 
   return (
+    // ESC já fecha via useEffect; click no backdrop é apenas convenience visual
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
-      <div 
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div
         className="flex flex-col w-full max-w-lg max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">
-              Agendar Consulta
-            </h3>
+            <h3 className="text-lg font-bold text-slate-900">Agendar Consulta</h3>
             <p className="text-xs text-slate-500 font-medium">
               Dr. {doctor?.user?.name || 'Médico'} • {doctor.specialty}
             </p>
@@ -138,33 +144,40 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          
           {/* 1. Modalidade de Consulta */}
           {hasModels && (
             <section>
               <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-500">1</div>
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-500">
+                  1
+                </div>
                 Escolha a modalidade
               </h4>
               <div className="space-y-2">
-                {models.map(model => (
+                {models.map((model) => (
                   <button
                     key={model.id}
                     onClick={() => setSelectedModelId(model.id)}
                     className={`group relative flex w-full items-center justify-between rounded-xl border p-4 text-left transition-all ${
-                      selectedModelId === model.id 
-                        ? 'border-sky-500 bg-sky-50/50 ring-1 ring-sky-500' 
+                      selectedModelId === model.id
+                        ? 'border-sky-500 bg-sky-50/50 ring-1 ring-sky-500'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-                        selectedModelId === model.id ? 'border-sky-500 bg-sky-500 text-white' : 'border-slate-300 bg-white'
-                      }`}>
+                      <div
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                          selectedModelId === model.id
+                            ? 'border-sky-500 bg-sky-500 text-white'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
                         {selectedModelId === model.id && <Check className="h-3 w-3" />}
                       </div>
                       <div>
-                        <span className={`block font-bold text-sm ${selectedModelId === model.id ? 'text-sky-900' : 'text-slate-700'}`}>
+                        <span
+                          className={`block font-bold text-sm ${selectedModelId === model.id ? 'text-sky-900' : 'text-slate-700'}`}
+                        >
                           {model.name}
                         </span>
                         <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
@@ -173,7 +186,9 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
                         </span>
                       </div>
                     </div>
-                    <span className={`text-sm font-bold ${selectedModelId === model.id ? 'text-sky-700' : 'text-slate-900'}`}>
+                    <span
+                      className={`text-sm font-bold ${selectedModelId === model.id ? 'text-sky-700' : 'text-slate-900'}`}
+                    >
                       R$ {model.price.toFixed(2)}
                     </span>
                   </button>
@@ -185,7 +200,9 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
           {/* 2. Data e Hora */}
           <section className={loading ? 'opacity-50 pointer-events-none' : ''}>
             <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-500">2</div>
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-500">
+                2
+              </div>
               Escolha o melhor horário
             </h4>
 
@@ -201,7 +218,9 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
                 <Calendar className="mx-auto h-8 w-8 text-slate-300 mb-3" />
                 <p className="text-sm font-bold text-slate-800">Sem horários livres</p>
-                <p className="text-xs text-slate-500 mt-1">Tente outra modalidade ou volte mais tarde.</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Tente outra modalidade ou volte mais tarde.
+                </p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -220,13 +239,15 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
                             : 'border-slate-200 bg-white text-slate-600 hover:border-sky-300 hover:bg-sky-50'
                         }`}
                       >
-                        <span className={`text-[9px] font-bold uppercase ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}>
+                        <span
+                          className={`text-[9px] font-bold uppercase ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}
+                        >
                           {format(date, 'eee', { locale: ptBR })}
                         </span>
-                        <span className="text-base font-bold mt-0.5">
-                          {format(date, 'dd')}
-                        </span>
-                        <span className={`text-[9px] font-medium uppercase mt-0.5 ${isSelected ? 'text-sky-100' : 'text-slate-500'}`}>
+                        <span className="text-base font-bold mt-0.5">{format(date, 'dd')}</span>
+                        <span
+                          className={`text-[9px] font-medium uppercase mt-0.5 ${isSelected ? 'text-sky-100' : 'text-slate-500'}`}
+                        >
                           {format(date, 'MMM', { locale: ptBR }).replace('.', '')}
                         </span>
                       </button>
@@ -243,7 +264,9 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
                       return (
                         <button
                           key={slot.start}
-                          onClick={() => onBook(doctor.userId, slot.start, selectedModelId || undefined)}
+                          onClick={() =>
+                            onBook(doctor.userId, slot.start, selectedModelId || undefined)
+                          }
                           className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-3 hover:border-sky-500 hover:bg-sky-50 hover:shadow-sm transition-all active:scale-95 group"
                         >
                           <span className="text-sm font-bold text-slate-700 group-hover:text-sky-700">
@@ -269,7 +292,9 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
         <div className="border-t border-slate-100 p-4 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-slate-400">
             <Clock className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-medium uppercase tracking-tight">Fuso: {tz.replace('_', ' ')}</span>
+            <span className="text-[10px] font-medium uppercase tracking-tight">
+              Fuso: {tz.replace('_', ' ')}
+            </span>
           </div>
           <button
             onClick={onClose}

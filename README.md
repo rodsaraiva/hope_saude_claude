@@ -224,9 +224,15 @@ Cobertura: roda `npx jest --coverage`.
 - ✅ Next.js 13 → 15, React 18 → 19
 - ✅ GitHub Actions CI
 
+**Limitações conhecidas**
+- 🔒 Busca por content em prontuários **desabilitada** após criptografia em
+  repouso (LGPD). O input de busca foi removido do `profile/page.tsx`.
+  Solução planejada: índice de busca server-side (Postgres FTS quando
+  migrarmos, ou hash determinístico via HMAC).
+
 **Próximas sprints**
 - ⏳ Migração SQLite → PostgreSQL (já existe pgvector no VPS)
-- ⏳ Encriptação de `MedicalRecord.content` e `Prescription.medications`
+- ⏳ Search server-side sobre conteúdo encriptado
 - ⏳ Continuar decomposição de páginas (`agenda` ainda 662 linhas, `profile` 602)
 - ⏳ Migrar mais `fetch` solto para hooks de Query
 - ⏳ Sentry / Pino logger estruturado

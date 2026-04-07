@@ -13,7 +13,6 @@ import {
   Phone,
   Stethoscope,
   User,
-  Search,
   ShieldCheck,
   Pill,
 } from 'lucide-react';
@@ -60,7 +59,6 @@ export default function UserProfilePage() {
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
-  const [recordSearch, setRecordSearch] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -138,12 +136,12 @@ export default function UserProfilePage() {
     load();
   }, [router]);
 
-  // Efeito para busca de prontuários (paciente pode pesquisar nos seus próprios)
+  // Recarrega prontuários quando a conta muda (search desabilitado por LGPD)
   useEffect(() => {
     if (account?.role === 'PATIENT' && account?.id) {
-      void fetchMedicalRecords(account.id, recordSearch).then(setMedicalRecords);
+      void fetchMedicalRecords(account.id).then(setMedicalRecords);
     }
-  }, [recordSearch, account]);
+  }, [account]);
 
   const { upcoming, history } = useMemo(
     () => splitAppointmentsByDate(appointments),
@@ -357,26 +355,17 @@ export default function UserProfilePage() {
                     <FileText className="h-5 w-5 text-sky-600" aria-hidden />
                     Meu Prontuário
                   </h2>
-                  <div className="relative max-w-[200px]">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                    <input
-                      type="text"
-                      value={recordSearch}
-                      onChange={(e) => setRecordSearch(e.target.value)}
-                      placeholder="Pesquisar..."
-                      className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-1 focus:ring-sky-500 focus:border-sky-500 placeholder:text-slate-400 transition-all"
-                    />
-                  </div>
+                  {/*
+                    Busca por content desabilitada após criptografia em repouso (LGPD).
+                    Será reativada quando houver índice de busca server-side
+                    (Postgres FTS ou hash determinístico via HMAC).
+                  */}
                 </div>
 
                 <div className="space-y-4">
                   {medicalRecords.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
-                      <p className="text-sm text-slate-500">
-                        {recordSearch
-                          ? 'Nenhum resultado para sua busca.'
-                          : 'Nenhuma evolução registrada ainda.'}
-                      </p>
+                      <p className="text-sm text-slate-500">Nenhuma evolução registrada ainda.</p>
                     </div>
                   ) : (
                     medicalRecords.map((record) => (

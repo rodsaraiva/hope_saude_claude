@@ -407,8 +407,10 @@ export default function DoctorAgenda() {
                   }
 
                   return (
+                    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
                     <div
                       key={dateStr}
+                      role="presentation"
                       className={`group relative col-span-1 border-r border-slate-100 ${isToday ? 'bg-sky-50/10' : ''}`}
                       onMouseUp={handleMouseUp}
                     >
@@ -429,13 +431,21 @@ export default function DoctorAgenda() {
                         return (
                           <div
                             key={time}
-                            onMouseDown={() => handleMouseDown(dateStr, time)}
-                            onMouseEnter={() => handleMouseEnter(dateStr, time)}
-                            className={`h-4 w-full border-b transition-colors hover:bg-sky-50/40 cursor-crosshair ${
-                              time.endsWith(':00') ? 'border-slate-100' : 'border-slate-50'
-                            } ${!isBusinessHour ? 'bg-slate-50/20' : ''}`}
+                            tabIndex={0}
                             role="button"
                             aria-label={`Selecionar horário ${format(date, 'dd/MM')} ${time}`}
+                            onMouseDown={() => handleMouseDown(dateStr, time)}
+                            onMouseEnter={() => handleMouseEnter(dateStr, time)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleMouseDown(dateStr, time);
+                                handleMouseUp();
+                              }
+                            }}
+                            className={`h-4 w-full border-b transition-colors hover:bg-sky-50/40 cursor-crosshair focus:outline-none focus:ring-1 focus:ring-sky-500 ${
+                              time.endsWith(':00') ? 'border-slate-100' : 'border-slate-50'
+                            } ${!isBusinessHour ? 'bg-slate-50/20' : ''}`}
                           />
                         );
                       })}
@@ -526,73 +536,85 @@ export default function DoctorAgenda() {
                           const durationSlots = appt.durationMinutes / 15;
                           const height = durationSlots * SLOT_HEIGHT - 4;
 
-                          return (
-                            <div
-                              key={`appt-${appt.id}`}
-                              onClick={() => {
-                                setSelectedPatientForRecord({
-                                  id: appt.patientId,
-                                  name: appt.patient?.name || 'Paciente',
-                                  appointmentId: appt.id,
-                                });
-                                setIsMedicalRecordOpen(true);
-                              }}
-                              className="absolute left-0.5 right-0.5 overflow-hidden rounded-md border border-emerald-200 bg-emerald-100/90 p-1.5 shadow-sm z-30 ring-1 ring-inset ring-emerald-300/30 cursor-pointer hover:bg-emerald-200/90 transition-all"
-                              style={{
-                                top: `${top + 1}px`,
-                                height: `${height}px`,
-                                borderLeftWidth: '4px',
-                                borderLeftColor: '#059669', // emerald-600
-                              }}
-                              title={`Consulta: ${appt.patient?.name || 'Paciente'} (Clique para abrir prontuário)`}
-                            >
-                              <div className="flex items-start justify-between gap-1">
-                                <p className="text-[9px] font-bold leading-none text-emerald-900 truncate">
-                                  {appt.patient?.name || 'Consulta'}
-                                </p>
-                                <div className="flex gap-1">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedPatientForRecord({
-                                        id: appt.patientId,
-                                        name: appt.patient?.name || 'Paciente',
-                                        appointmentId: appt.id,
-                                      });
-                                      setIsMedicalRecordOpen(true);
-                                    }}
-                                    className="p-0.5 hover:bg-emerald-200 rounded text-emerald-700"
-                                    title="Abrir Prontuário"
-                                  >
-                                    <FileText size={10} />
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedPatientForRecord({
-                                        id: appt.patientId,
-                                        name: appt.patient?.name || 'Paciente',
-                                        appointmentId: appt.id,
-                                      });
-                                      setIsPrescriptionOpen(true);
-                                    }}
-                                    className="p-0.5 hover:bg-emerald-200 rounded text-emerald-700"
-                                    title="Emitir Receita"
-                                  >
-                                    <Pill size={10} />
-                                  </button>
+                          {
+                            const openMedicalRecord = () => {
+                              setSelectedPatientForRecord({
+                                id: appt.patientId,
+                                name: appt.patient?.name || 'Paciente',
+                                appointmentId: appt.id,
+                              });
+                              setIsMedicalRecordOpen(true);
+                            };
+                            return (
+                              <div
+                                key={`appt-${appt.id}`}
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`Abrir prontuário de ${appt.patient?.name || 'paciente'}`}
+                                onClick={openMedicalRecord}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    openMedicalRecord();
+                                  }
+                                }}
+                                className="absolute left-0.5 right-0.5 overflow-hidden rounded-md border border-emerald-200 bg-emerald-100/90 p-1.5 shadow-sm z-30 ring-1 ring-inset ring-emerald-300/30 cursor-pointer hover:bg-emerald-200/90 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                style={{
+                                  top: `${top + 1}px`,
+                                  height: `${height}px`,
+                                  borderLeftWidth: '4px',
+                                  borderLeftColor: '#059669', // emerald-600
+                                }}
+                                title={`Consulta: ${appt.patient?.name || 'Paciente'} (Clique para abrir prontuário)`}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <p className="text-[9px] font-bold leading-none text-emerald-900 truncate">
+                                    {appt.patient?.name || 'Consulta'}
+                                  </p>
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPatientForRecord({
+                                          id: appt.patientId,
+                                          name: appt.patient?.name || 'Paciente',
+                                          appointmentId: appt.id,
+                                        });
+                                        setIsMedicalRecordOpen(true);
+                                      }}
+                                      className="p-0.5 hover:bg-emerald-200 rounded text-emerald-700"
+                                      title="Abrir Prontuário"
+                                    >
+                                      <FileText size={10} />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPatientForRecord({
+                                          id: appt.patientId,
+                                          name: appt.patient?.name || 'Paciente',
+                                          appointmentId: appt.id,
+                                        });
+                                        setIsPrescriptionOpen(true);
+                                      }}
+                                      className="p-0.5 hover:bg-emerald-200 rounded text-emerald-700"
+                                      title="Emitir Receita"
+                                    >
+                                      <Pill size={10} />
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                              <p className="mt-0.5 text-[9px] font-medium text-emerald-700 leading-none">
-                                {startStr} - {endStr}
-                              </p>
-                              {height > 30 && (
-                                <p className="mt-1 text-[8px] font-bold text-emerald-600/80 uppercase tracking-tight">
-                                  Consulta
+                                <p className="mt-0.5 text-[9px] font-medium text-emerald-700 leading-none">
+                                  {startStr} - {endStr}
                                 </p>
-                              )}
-                            </div>
-                          );
+                                {height > 30 && (
+                                  <p className="mt-1 text-[8px] font-bold text-emerald-600/80 uppercase tracking-tight">
+                                    Consulta
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          }
                         })}
                     </div>
                   );
