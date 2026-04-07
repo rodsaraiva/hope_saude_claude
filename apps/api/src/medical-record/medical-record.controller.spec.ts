@@ -94,7 +94,7 @@ describe('MedicalRecordController', () => {
     expect(result.content).toBe('Conteúdo novo');
   });
 
-  it('deve chamar o serviço para assinar um prontuário', async () => {
+  it('deve chamar o serviço para assinar um prontuário (sem authData)', async () => {
     const req = { user: { userId: 1, role: 'DOCTOR' } };
     const id = '1';
 
@@ -102,7 +102,28 @@ describe('MedicalRecordController', () => {
 
     const result = await controller.sign(req as any, id);
 
-    expect(service.sign).toHaveBeenCalledWith(1, 1);
+    expect(service.sign).toHaveBeenCalledWith(1, 1, undefined);
     expect(result.status).toBe('SIGNED');
+  });
+
+  it('deve encaminhar authData ao serviço quando fornecido no body', async () => {
+    const req = { user: { userId: 1, role: 'DOCTOR' } };
+    const id = '7';
+    const body = { authData: { code: 'otp-123' } };
+
+    mockService.sign.mockResolvedValue({ id: 7, status: 'SIGNED' });
+
+    await controller.sign(req as any, id, body);
+
+    expect(service.sign).toHaveBeenCalledWith(1, 7, { code: 'otp-123' });
+  });
+
+  it('bloqueia paciente de assinar prontuário', async () => {
+    const req = { user: { userId: 9, role: 'PATIENT' } };
+
+    await expect(controller.sign(req as any, '1')).rejects.toThrow(
+      /Apenas médicos/,
+    );
+    expect(service.sign).not.toHaveBeenCalled();
   });
 });

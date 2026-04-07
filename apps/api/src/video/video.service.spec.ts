@@ -77,6 +77,28 @@ describe('VideoService', () => {
       });
     });
 
+    it('usa ws://localhost:7880 como fallback quando LIVEKIT_WS_URL não está definido', async () => {
+      const moduleFallback = await Test.createTestingModule({
+        providers: [
+          VideoService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn().mockImplementation((key: string) => {
+                if (key === 'LIVEKIT_API_KEY') return 'k';
+                if (key === 'LIVEKIT_API_SECRET') return 's';
+                return undefined;
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      const svc = moduleFallback.get<VideoService>(VideoService);
+      const result = await svc.generateToken('room-x', 'user@x.com');
+      expect(result.livekitUrl).toBe('ws://localhost:7880');
+    });
+
     it('deve lançar se LIVEKIT_API_KEY ou LIVEKIT_API_SECRET não estiverem definidos', async () => {
       const moduleNoKeys = await Test.createTestingModule({
         providers: [

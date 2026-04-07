@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   NotFoundException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { AuthService } from './auth.service';
@@ -19,11 +20,13 @@ import { LoginDto } from './dto/login.dto';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('register')
   async register(@Body() createUserDto: RegisterDto) {
     return this.authService.registerAndLogin(createUserDto);
   }
 
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('login')
   async login(@Body() body: LoginDto) {
     const user = await this.authService.validateUser(body.email, body.password);
