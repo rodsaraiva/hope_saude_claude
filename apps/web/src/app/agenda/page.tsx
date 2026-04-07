@@ -6,6 +6,7 @@ import { AgendaHeader } from '@/components/agenda/AgendaHeader';
 import { CalendarToolbar } from '@/components/agenda/CalendarToolbar';
 import { WeeklyDaysHeader } from '@/components/agenda/WeeklyDaysHeader';
 import { TimeSlotColumn } from '@/components/agenda/TimeSlotColumn';
+import { AppointmentSlotCell } from '@/components/agenda/AppointmentSlotCell';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import {
@@ -487,100 +488,21 @@ export default function DoctorAgenda() {
 
                       {appointments
                         .filter((appt) => isSameDay(parseISO(appt.date), date))
-                        .map((appt) => {
-                          const start = parseISO(appt.date);
-                          const end = addMinutes(start, appt.durationMinutes);
-
-                          const startStr = format(start, 'HH:mm');
-                          const endStr = format(end, 'HH:mm');
-
-                          // Cálculo robusto de posição baseado em minutos do dia
-                          const startTotalMinutes = start.getHours() * 60 + start.getMinutes();
-                          const top = (startTotalMinutes / 15) * SLOT_HEIGHT;
-
-                          const durationSlots = appt.durationMinutes / 15;
-                          const height = durationSlots * SLOT_HEIGHT - 4;
-
-                          {
-                            const openMedicalRecord = () => {
-                              setSelectedPatientForRecord({
-                                id: appt.patientId,
-                                name: appt.patient?.name || 'Paciente',
-                                appointmentId: appt.id,
-                              });
+                        .map((appt) => (
+                          <AppointmentSlotCell
+                            key={`appt-${appt.id}`}
+                            appt={appt}
+                            slotHeightPx={SLOT_HEIGHT}
+                            onOpenRecord={(info) => {
+                              setSelectedPatientForRecord(info);
                               setIsMedicalRecordOpen(true);
-                            };
-                            return (
-                              <div
-                                key={`appt-${appt.id}`}
-                                tabIndex={0}
-                                role="button"
-                                aria-label={`Abrir prontuário de ${appt.patient?.name || 'paciente'}`}
-                                onClick={openMedicalRecord}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    openMedicalRecord();
-                                  }
-                                }}
-                                className="absolute left-0.5 right-0.5 overflow-hidden rounded-md border border-emerald-200 bg-emerald-100/90 p-1.5 shadow-sm z-30 ring-1 ring-inset ring-emerald-300/30 cursor-pointer hover:bg-emerald-200/90 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                style={{
-                                  top: `${top + 1}px`,
-                                  height: `${height}px`,
-                                  borderLeftWidth: '4px',
-                                  borderLeftColor: '#059669', // emerald-600
-                                }}
-                                title={`Consulta: ${appt.patient?.name || 'Paciente'} (Clique para abrir prontuário)`}
-                              >
-                                <div className="flex items-start justify-between gap-1">
-                                  <p className="text-[9px] font-bold leading-none text-emerald-900 truncate">
-                                    {appt.patient?.name || 'Consulta'}
-                                  </p>
-                                  <div className="flex gap-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedPatientForRecord({
-                                          id: appt.patientId,
-                                          name: appt.patient?.name || 'Paciente',
-                                          appointmentId: appt.id,
-                                        });
-                                        setIsMedicalRecordOpen(true);
-                                      }}
-                                      className="p-0.5 hover:bg-emerald-200 rounded text-emerald-700"
-                                      title="Abrir Prontuário"
-                                    >
-                                      <FileText size={10} />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedPatientForRecord({
-                                          id: appt.patientId,
-                                          name: appt.patient?.name || 'Paciente',
-                                          appointmentId: appt.id,
-                                        });
-                                        setIsPrescriptionOpen(true);
-                                      }}
-                                      className="p-0.5 hover:bg-emerald-200 rounded text-emerald-700"
-                                      title="Emitir Receita"
-                                    >
-                                      <Pill size={10} />
-                                    </button>
-                                  </div>
-                                </div>
-                                <p className="mt-0.5 text-[9px] font-medium text-emerald-700 leading-none">
-                                  {startStr} - {endStr}
-                                </p>
-                                {height > 30 && (
-                                  <p className="mt-1 text-[8px] font-bold text-emerald-600/80 uppercase tracking-tight">
-                                    Consulta
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          }
-                        })}
+                            }}
+                            onOpenPrescription={(info) => {
+                              setSelectedPatientForRecord(info);
+                              setIsPrescriptionOpen(true);
+                            }}
+                          />
+                        ))}
                     </div>
                   );
                 })}

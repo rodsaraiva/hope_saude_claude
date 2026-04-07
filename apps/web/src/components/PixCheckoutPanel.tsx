@@ -53,10 +53,9 @@ export default function PixCheckoutPanel({
     }
   };
 
-  const shell =
-    embedded
-      ? 'rounded-xl border border-emerald-100 bg-emerald-50/40 p-5'
-      : 'mb-6 rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm';
+  const shell = embedded
+    ? 'rounded-xl border border-emerald-100 bg-emerald-50/40 p-5'
+    : 'mb-6 rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm';
 
   return (
     <section
@@ -125,11 +124,7 @@ export default function PixCheckoutPanel({
               }`}
               aria-live="polite"
             >
-              {qrFetchError
-                ? '—'
-                : showQrSkeleton
-                  ? 'Aguardando código PIX…'
-                  : data.pixCode}
+              {qrFetchError ? '—' : showQrSkeleton ? 'Aguardando código PIX…' : data.pixCode}
             </output>
             <button
               type="button"
@@ -137,7 +132,11 @@ export default function PixCheckoutPanel({
               disabled={!data.pixCode || qrLoading || !!qrFetchError}
               className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+              {copied ? (
+                <Check className="h-4 w-4" aria-hidden />
+              ) : (
+                <Copy className="h-4 w-4" aria-hidden />
+              )}
               {copied ? 'Copiado' : 'Copiar'}
             </button>
           </div>

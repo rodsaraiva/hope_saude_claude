@@ -1,16 +1,9 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import {
-  Calendar,
-  Clock,
-  Loader2,
-} from 'lucide-react';
+import { Calendar, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import {
-  getProfileMeSafe,
-  fetchAppointmentsMe,
-} from '@/lib/doctor-dashboard-api';
+import { getProfileMeSafe, fetchAppointmentsMe } from '@/lib/doctor-dashboard-api';
 
 export default function DoctorDashboard() {
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
@@ -23,7 +16,7 @@ export default function DoctorDashboard() {
     const load = async () => {
       setLoadError(null);
       try {
-        const profResult = await getProfileMeSafe() as any;
+        const profResult = (await getProfileMeSafe()) as any;
         if (cancelled) return;
         if (profResult.notFound) {
           window.location.href = '/setup/doctor';
@@ -39,7 +32,9 @@ export default function DoctorDashboard() {
         setAppointments(appts as Array<Record<string, unknown>>);
       } catch {
         if (!cancelled) {
-          setLoadError('Não foi possível carregar o painel. Verifique sua conexão e tente novamente.');
+          setLoadError(
+            'Não foi possível carregar o painel. Verifique sua conexão e tente novamente.',
+          );
         }
       }
     };
@@ -75,8 +70,7 @@ export default function DoctorDashboard() {
     );
   }
 
-  const userName =
-    (profile as { user?: { name?: string } })?.user?.name || 'Médico';
+  const userName = (profile as { user?: { name?: string } })?.user?.name || 'Médico';
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -129,7 +123,8 @@ export default function DoctorDashboard() {
                         })}
                       </p>
                       <p className="text-xs font-medium text-slate-600">
-                        Horário: {new Date(String(appt.date)).toLocaleTimeString('pt-BR', {
+                        Horário:{' '}
+                        {new Date(String(appt.date)).toLocaleTimeString('pt-BR', {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
@@ -146,7 +141,9 @@ export default function DoctorDashboard() {
                   ))
                 ) : (
                   <div className="sm:col-span-2 py-12 text-center">
-                    <p className="text-sm italic text-slate-500">Nenhuma consulta agendada para os próximos dias.</p>
+                    <p className="text-sm italic text-slate-500">
+                      Nenhuma consulta agendada para os próximos dias.
+                    </p>
                   </div>
                 )}
               </div>
@@ -163,18 +160,22 @@ export default function DoctorDashboard() {
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600">Agendamentos para hoje</span>
                     <span className="font-bold text-slate-900">
-                      {scheduled.filter(a => {
-                        const d = new Date(String(a.date));
-                        const today = new Date();
-                        return d.getDate() === today.getDate() && d.getMonth() === today.getMonth();
-                      }).length}
+                      {
+                        scheduled.filter((a) => {
+                          const d = new Date(String(a.date));
+                          const today = new Date();
+                          return (
+                            d.getDate() === today.getDate() && d.getMonth() === today.getMonth()
+                          );
+                        }).length
+                      }
                     </span>
                   </div>
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-800 mb-4">Configurações Rápidas</h3>
-                <Link 
+                <Link
                   href="/agenda"
                   className="w-full text-left text-sm text-sky-600 hover:text-sky-700 font-medium"
                 >
@@ -199,10 +200,15 @@ export default function DoctorDashboard() {
                     >
                       <div>
                         <p className="text-xs font-bold text-slate-900">
-                          {new Date(String(appt.date)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                          {new Date(String(appt.date)).toLocaleString('pt-BR', {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                          })}
                         </p>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Finalizada</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                        Finalizada
+                      </span>
                     </div>
                   ))
                 ) : (

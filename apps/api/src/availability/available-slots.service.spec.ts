@@ -8,7 +8,10 @@ describe('AvailableSlotsService', () => {
   let service: AvailableSlotsService;
   let profileService: jest.Mocked<Pick<ProfileService, 'getDoctorProfileByUserId'>>;
   let appointmentService: jest.Mocked<
-    Pick<AppointmentService, 'findAppointmentsForDoctorInRange' | 'findPendingCheckoutsForDoctorInRange'>
+    Pick<
+      AppointmentService,
+      'findAppointmentsForDoctorInRange' | 'findPendingCheckoutsForDoctorInRange'
+    >
   >;
 
   beforeEach(async () => {
@@ -114,7 +117,7 @@ describe('AvailableSlotsService', () => {
     // 13:15, 13:30, 13:45, 14:00, 14:15, 14:30, 14:45 (todos terminam até 15:45)
     // Total: 7 slots
     expect(result.slots.length).toBe(7);
-    
+
     // 13:15 BRT = 16:15 UTC
     expect(result.slots[0].start).toBe('2026-04-06T16:15:00.000Z');
     // 14:45 BRT = 17:45 UTC

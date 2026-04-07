@@ -3,6 +3,7 @@
 import { X, CreditCard, QrCode, CheckCircle2 } from 'lucide-react';
 import PixCheckoutPanel from '@/components/PixCheckoutPanel';
 import { usePayment } from '@/hooks/usePayment';
+import { ModalBackdrop } from '@/components/ui/ModalBackdrop';
 
 export type PaymentModalProps = {
   open: boolean;
@@ -34,12 +35,7 @@ export default function PaymentModal({
   const currentPaymentId = tab === 'pix' ? pix.data?.paymentId : card.paymentId;
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="payment-modal-title"
-    >
+    <ModalBackdrop onClose={onClose} label="Pagamento da consulta" className="z-[100]">
       <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 id="payment-modal-title" className="text-xl font-bold text-slate-900">
@@ -141,7 +137,12 @@ export default function PaymentModal({
                         Preencha os dados do cartão e o endereço de cobrança exigidos pelo Asaas.
                       </p>
                       <div>
-                        <label htmlFor="cc-name" className="block text-xs font-medium text-slate-700">Nome no cartão</label>
+                        <label
+                          htmlFor="cc-name"
+                          className="block text-xs font-medium text-slate-700"
+                        >
+                          Nome no cartão
+                        </label>
                         <input
                           id="cc-name"
                           required
@@ -152,7 +153,12 @@ export default function PaymentModal({
                         />
                       </div>
                       <div>
-                        <label htmlFor="cc-number" className="block text-xs font-medium text-slate-700">Número do cartão</label>
+                        <label
+                          htmlFor="cc-number"
+                          className="block text-xs font-medium text-slate-700"
+                        >
+                          Número do cartão
+                        </label>
                         <input
                           id="cc-number"
                           required
@@ -165,7 +171,12 @@ export default function PaymentModal({
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label htmlFor="cc-exp-month" className="block text-xs font-medium text-slate-700">Mês</label>
+                          <label
+                            htmlFor="cc-exp-month"
+                            className="block text-xs font-medium text-slate-700"
+                          >
+                            Mês
+                          </label>
                           <input
                             id="cc-exp-month"
                             required
@@ -177,7 +188,12 @@ export default function PaymentModal({
                           />
                         </div>
                         <div>
-                          <label htmlFor="cc-exp-year" className="block text-xs font-medium text-slate-700">Ano</label>
+                          <label
+                            htmlFor="cc-exp-year"
+                            className="block text-xs font-medium text-slate-700"
+                          >
+                            Ano
+                          </label>
                           <input
                             id="cc-exp-year"
                             required
@@ -189,7 +205,12 @@ export default function PaymentModal({
                           />
                         </div>
                         <div>
-                          <label htmlFor="cc-ccv" className="block text-xs font-medium text-slate-700">CVV</label>
+                          <label
+                            htmlFor="cc-ccv"
+                            className="block text-xs font-medium text-slate-700"
+                          >
+                            CVV
+                          </label>
                           <input
                             id="cc-ccv"
                             required
@@ -203,7 +224,12 @@ export default function PaymentModal({
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label htmlFor="cc-cep" className="block text-xs font-medium text-slate-700">CEP</label>
+                          <label
+                            htmlFor="cc-cep"
+                            className="block text-xs font-medium text-slate-700"
+                          >
+                            CEP
+                          </label>
                           <input
                             id="cc-cep"
                             required
@@ -213,7 +239,12 @@ export default function PaymentModal({
                           />
                         </div>
                         <div>
-                          <label htmlFor="cc-number-addr" className="block text-xs font-medium text-slate-700">Número</label>
+                          <label
+                            htmlFor="cc-number-addr"
+                            className="block text-xs font-medium text-slate-700"
+                          >
+                            Número
+                          </label>
                           <input
                             id="cc-number-addr"
                             required
@@ -224,7 +255,12 @@ export default function PaymentModal({
                         </div>
                       </div>
                       <div>
-                        <label htmlFor="cc-phone" className="block text-xs font-medium text-slate-700">Celular (opcional)</label>
+                        <label
+                          htmlFor="cc-phone"
+                          className="block text-xs font-medium text-slate-700"
+                        >
+                          Celular (opcional)
+                        </label>
                         <input
                           id="cc-phone"
                           value={card.form.mobilePhone}
@@ -256,7 +292,8 @@ export default function PaymentModal({
                       Ambiente de Desenvolvimento
                     </p>
                     <p className="text-xs text-amber-700 mb-4">
-                      Para agilizar seu teste, você pode marcar esta cobrança como paga manualmente, simulando o retorno do Asaas.
+                      Para agilizar seu teste, você pode marcar esta cobrança como paga manualmente,
+                      simulando o retorno do Asaas.
                     </p>
                     <button
                       type="button"
@@ -273,6 +310,6 @@ export default function PaymentModal({
           )}
         </div>
       </div>
-    </div>
+    </ModalBackdrop>
   );
 }

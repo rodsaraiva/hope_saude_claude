@@ -17,9 +17,7 @@ describe('MedicalRecordController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MedicalRecordController],
-      providers: [
-        { provide: MedicalRecordService, useValue: mockService },
-      ],
+      providers: [{ provide: MedicalRecordService, useValue: mockService }],
     }).compile();
 
     controller = module.get<MedicalRecordController>(MedicalRecordController);
@@ -78,7 +76,9 @@ describe('MedicalRecordController', () => {
     const req = { user: { userId: 2, role: 'PATIENT' } };
     const patientId = '3'; // Outro paciente
 
-    await expect(controller.findAllByPatient(req as any, patientId)).rejects.toThrow(ForbiddenException);
+    await expect(controller.findAllByPatient(req as any, patientId)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('deve chamar o serviço para atualizar um prontuário', async () => {
@@ -121,9 +121,7 @@ describe('MedicalRecordController', () => {
   it('bloqueia paciente de assinar prontuário', async () => {
     const req = { user: { userId: 9, role: 'PATIENT' } };
 
-    await expect(controller.sign(req as any, '1')).rejects.toThrow(
-      /Apenas médicos/,
-    );
+    await expect(controller.sign(req as any, '1')).rejects.toThrow(/Apenas médicos/);
     expect(service.sign).not.toHaveBeenCalled();
   });
 });

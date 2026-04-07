@@ -19,7 +19,11 @@ describe('patient-booking-api', () => {
     };
     jest.mocked(api.get).mockResolvedValue(payload);
 
-    const r = await fetchDoctorAvailableSlots(3, '2026-04-01T00:00:00.000Z', '2026-04-30T23:59:59.999Z');
+    const r = await fetchDoctorAvailableSlots(
+      3,
+      '2026-04-01T00:00:00.000Z',
+      '2026-04-30T23:59:59.999Z',
+    );
 
     expect(api.get).toHaveBeenCalledWith('/profile/doctors/3/available-slots', {
       params: {

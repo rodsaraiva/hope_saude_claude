@@ -11,7 +11,13 @@ export type AuthFormShellProps = {
 /**
  * Layout compartilhado para login, cadastro e telas de setup (SRP + reutilização).
  */
-export function AuthFormShell({ title, titleHighlight, subtitle, children, footer }: AuthFormShellProps) {
+export function AuthFormShell({
+  title,
+  titleHighlight,
+  subtitle,
+  children,
+  footer,
+}: AuthFormShellProps) {
   return (
     <div className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-md">

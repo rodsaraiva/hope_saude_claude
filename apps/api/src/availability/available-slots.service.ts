@@ -33,13 +33,15 @@ export class AvailableSlotsService {
     from: Date,
     to: Date,
     timeZone: string = DEFAULT_DOCTOR_TIME_ZONE,
-    durationMinutes?: number
+    durationMinutes?: number,
   ): Promise<{ timeZone: string; slots: AvailableSlotDto[] }> {
     if (from.getTime() > to.getTime()) {
       throw new BadRequestException('Parâmetro "from" deve ser anterior ou igual a "to"');
     }
 
-    const durationMs = durationMinutes ? durationMinutes * 60 * 1000 : DEFAULT_CONSULTATION_DURATION_MS;
+    const durationMs = durationMinutes
+      ? durationMinutes * 60 * 1000
+      : DEFAULT_CONSULTATION_DURATION_MS;
 
     const profile = await this.profileService.getDoctorProfileByUserId(doctorUserId);
     if (!profile) {

@@ -9,8 +9,7 @@ export class VideoService {
   async generateToken(roomName: string, identity: string) {
     const apiKey = this.config.get<string>('LIVEKIT_API_KEY');
     const apiSecret = this.config.get<string>('LIVEKIT_API_SECRET');
-    const livekitUrl =
-      this.config.get<string>('LIVEKIT_WS_URL') ?? 'ws://localhost:7880';
+    const livekitUrl = this.config.get<string>('LIVEKIT_WS_URL') ?? 'ws://localhost:7880';
 
     if (!apiKey || !apiSecret) {
       throw new Error('LIVEKIT_API_KEY e LIVEKIT_API_SECRET devem estar configurados');

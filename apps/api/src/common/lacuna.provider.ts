@@ -36,7 +36,7 @@ export class LacunaProvider implements SignatureProvider {
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
         },
-      }
+      },
     );
 
     // 3. Retorno da assinatura no formato padronizado (SignatureResult)

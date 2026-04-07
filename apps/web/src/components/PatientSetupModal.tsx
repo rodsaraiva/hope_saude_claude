@@ -3,13 +3,14 @@ import { X } from 'lucide-react';
 import { formatCpf, digitsOnlyCpf } from '@/lib/cpf-format';
 import { validatePatientCpfDigits, validatePatientPhone } from '@/lib/setup-validation';
 import { postPatientSetup } from '@/lib/profile-setup-api';
+import { ModalBackdrop } from '@/components/ui/ModalBackdrop';
 
-export default function PatientSetupModal({ 
-  onClose, 
-  onSuccess 
-}: { 
-  onClose: () => void; 
-  onSuccess: () => void; 
+export default function PatientSetupModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
 }) {
   const [cpf, setCpf] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,8 +38,7 @@ export default function PatientSetupModal({
       await postPatientSetup({ cpf: rawCpf, phone: phone.trim() });
       onSuccess();
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'Erro ao salvar os dados.';
+      const msg = err instanceof Error ? err.message : 'Erro ao salvar os dados.';
       setError(msg === 'Erro na requisição' ? 'Falha de conexão.' : msg);
     } finally {
       setLoading(false);
@@ -46,7 +46,7 @@ export default function PatientSetupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <ModalBackdrop onClose={onClose} label="Complete seu cadastro">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-900">Complete seu cadastro</h2>
@@ -57,15 +57,19 @@ export default function PatientSetupModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6">
           <p className="mb-6 text-sm text-slate-600">
-            Para realizar pagamentos e confirmar sua consulta, precisamos do seu CPF e número de celular.
+            Para realizar pagamentos e confirmar sua consulta, precisamos do seu CPF e número de
+            celular.
           </p>
-          
+
           <div className="space-y-4">
             <div>
-              <label htmlFor="modal-patient-cpf" className="mb-1 block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="modal-patient-cpf"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
                 CPF
               </label>
               <input
@@ -79,9 +83,12 @@ export default function PatientSetupModal({
                 inputMode="numeric"
               />
             </div>
-            
+
             <div>
-              <label htmlFor="modal-patient-phone" className="mb-1 block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="modal-patient-phone"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
                 Celular
               </label>
               <input
@@ -97,9 +104,7 @@ export default function PatientSetupModal({
           </div>
 
           {error && (
-            <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </div>
+            <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
           )}
 
           <div className="mt-8 flex justify-end gap-3">
@@ -120,6 +125,6 @@ export default function PatientSetupModal({
           </div>
         </form>
       </div>
-    </div>
+    </ModalBackdrop>
   );
 }

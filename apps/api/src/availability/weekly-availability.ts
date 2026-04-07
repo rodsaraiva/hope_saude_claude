@@ -10,7 +10,7 @@ export class InvalidAvailabilityPayloadError extends Error {
 export type WeeklySlot = {
   id?: number;
   date?: string; // YYYY-MM-DD
-  day?: string;  // Segunda, etc
+  day?: string; // Segunda, etc
   start: string;
   end: string;
   recurrence?: 'NONE' | 'WEEKLY' | 'DAILY' | 'WEEKDAYS' | 'BIWEEKLY';
@@ -56,7 +56,9 @@ export function assertValidDoctorAvailabilityJson(raw: string): void {
       typeof (item as { start: unknown }).start !== 'string' ||
       typeof (item as { end: unknown }).end !== 'string'
     ) {
-      throw new InvalidAvailabilityPayloadError('Cada slot deve incluir day ou date, start e end como texto');
+      throw new InvalidAvailabilityPayloadError(
+        'Cada slot deve incluir day ou date, start e end como texto',
+      );
     }
   }
 }
@@ -134,12 +136,12 @@ export function expandWeeklySlotsInRange(
       // Avaliação de Data Específica vs Dia Genérico
       if (slot.date) {
         const slotDate = DateTime.fromISO(slot.date, { zone: timeZone }).startOf('day');
-        
+
         // Se d (data avaliada) é menor que a data inicial do slot, ele ainda não se aplica
         if (d < slotDate) {
           continue;
         }
-        
+
         if (recurrence === 'NONE' && d.toISODate() !== slot.date) {
           continue;
         }
@@ -154,11 +156,11 @@ export function expandWeeklySlotsInRange(
 
         if (recurrence === 'BIWEEKLY') {
           if (d.weekday !== slotDate.weekday) continue;
-          
+
           // Calcula diferença em dias (já que startOf('day') zera as horas)
           const diffMs = d.toMillis() - slotDate.toMillis();
           const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-          
+
           // 1 semana = 7 dias, a cada 14 dias repete.
           // Logo, se diffDays for 0, 14, 28... é válido.
           if (diffDays % 14 !== 0) {
@@ -175,7 +177,7 @@ export function expandWeeklySlotsInRange(
         }
         if (recurrence === 'BIWEEKLY') {
           if (slot.day !== dayName) continue;
-          if (d.weekNumber % 2 !== 0) continue; 
+          if (d.weekNumber % 2 !== 0) continue;
         }
       }
 

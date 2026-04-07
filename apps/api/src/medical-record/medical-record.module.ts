@@ -9,9 +9,9 @@ import { ConfigService } from '@nestjs/config';
 @Module({
   controllers: [MedicalRecordController],
   providers: [
-    MedicalRecordService, 
-    PrismaService, 
-    CryptographyService, 
+    MedicalRecordService,
+    PrismaService,
+    CryptographyService,
     ConfigService,
     {
       provide: 'SignatureProvider',

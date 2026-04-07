@@ -7,8 +7,10 @@ import { Calendar, Clock, FileText, History, ShieldCheck, Pill } from 'lucide-re
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { RegistrationDetails } from '@/components/profile/RegistrationDetails';
 import { PrescriptionsList } from '@/components/profile/PrescriptionsList';
+import { MedicalRecordsList } from '@/components/profile/MedicalRecordsList';
+import { UpcomingAppointmentsCard } from '@/components/profile/UpcomingAppointmentsCard';
+import { AppointmentsHistoryCard } from '@/components/profile/AppointmentsHistoryCard';
 import { splitAppointmentsByDate } from '@/lib/appointment-helpers';
-import { type MedicalRecord, type Prescription } from '@/lib/doctor-dashboard-api';
 import { useAuthMe } from '@/lib/query/use-auth-me';
 import { useProfileMe } from '@/lib/query/use-profile-me';
 import { useAppointmentsMe } from '@/lib/query/use-appointments-me';
@@ -208,80 +210,7 @@ export default function UserProfilePage() {
               missingExtendedProfile={missingExtendedProfile}
             />
 
-            {account.role === 'PATIENT' && (
-              <section
-                className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
-                aria-labelledby="prontuario-heading"
-              >
-                <div className="flex items-center justify-between gap-4 mb-6">
-                  <h2
-                    id="prontuario-heading"
-                    className="flex items-center gap-2 text-lg font-semibold text-slate-900"
-                  >
-                    <FileText className="h-5 w-5 text-sky-600" aria-hidden />
-                    Meu Prontuário
-                  </h2>
-                  {/*
-                    Busca por content desabilitada após criptografia em repouso (LGPD).
-                    Será reativada quando houver índice de busca server-side
-                    (Postgres FTS ou hash determinístico via HMAC).
-                  */}
-                </div>
-
-                <div className="space-y-4">
-                  {medicalRecords.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
-                      <p className="text-sm text-slate-500">Nenhuma evolução registrada ainda.</p>
-                    </div>
-                  ) : (
-                    medicalRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3.5 w-3.5 text-slate-400" />
-                            <span className="text-xs font-bold text-slate-600">
-                              {format(parseISO(record.createdAt), "dd 'de' MMMM 'de' yyyy", {
-                                locale: ptBR,
-                              })}
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">
-                              Dr. {record.doctor?.name ?? 'Médico'}
-                            </span>
-                            {record.status === 'SIGNED' && (
-                              <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                                <ShieldCheck className="h-2.5 w-2.5" />
-                                ASSINADO DIGITALMENTE
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div
-                          className="prose prose-sm prose-slate max-w-none text-slate-700"
-                          dangerouslySetInnerHTML={{ __html: record.content }}
-                        />
-                        {record.status === 'SIGNED' && record.signedHash && (
-                          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[8px] font-mono text-slate-400">
-                            <span>Hash de Integridade: {record.signedHash}</span>
-                            <span>
-                              Assinado em:{' '}
-                              {format(parseISO(record.signatureDate!), 'dd/MM/yyyy HH:mm')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <p className="mt-4 text-[10px] text-center text-slate-400 font-medium">
-                  Apenas você e os médicos com quem você tem consulta podem acessar estes registros.
-                </p>
-              </section>
-            )}
+            {account.role === 'PATIENT' && <MedicalRecordsList records={medicalRecords} />}
 
             {account.role === 'PATIENT' && (
               <PrescriptionsList
@@ -338,112 +267,17 @@ export default function UserProfilePage() {
               </section>
             )}
 
-            <section
-              className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
-              aria-labelledby="proximas-heading"
-            >
-              <h2
-                id="proximas-heading"
-                className="flex items-center gap-2 text-lg font-semibold text-slate-900"
-              >
-                <Calendar className="h-5 w-5 text-emerald-600" aria-hidden />
-                Próximas consultas
-              </h2>
-              <ul className="mt-4 space-y-3">
-                {upcoming.length === 0 && (
-                  <li className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-500">
-                    Nenhuma consulta futura agendada.
-                  </li>
-                )}
-                {upcoming.map((appt) => (
-                  <li
-                    key={appt.id}
-                    className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-emerald-50/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex items-start gap-2">
-                      <Clock className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" aria-hidden />
-                      <div>
-                        <p className="font-medium text-slate-900">
-                          {new Date(appt.date).toLocaleString('pt-BR')}
-                        </p>
-                        {account.role === 'PATIENT' && (
-                          <p className="text-sm text-slate-600">
-                            Com Dr. {doctorNames[appt.doctorId] ?? '—'}
-                          </p>
-                        )}
-                        {account.role === 'DOCTOR' && (
-                          <p className="text-sm text-slate-600">Paciente (ID {appt.patientId})</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          appt.status === 'CONFIRMED'
-                            ? 'bg-green-100 text-green-800'
-                            : appt.status === 'PENDING'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {appt.status}
-                      </span>
-                      {appt.status === 'CONFIRMED' && (
-                        <a
-                          href={`/video/${appt.id}`}
-                          className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
-                        >
-                          Entrar na consulta
-                        </a>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <UpcomingAppointmentsCard
+              upcoming={upcoming}
+              userRole={account.role}
+              doctorNames={doctorNames}
+            />
 
-            <section
-              className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
-              aria-labelledby="historico-heading"
-            >
-              <h2
-                id="historico-heading"
-                className="flex items-center gap-2 text-lg font-semibold text-slate-900"
-              >
-                <History className="h-5 w-5 text-slate-500" aria-hidden />
-                Histórico
-              </h2>
-              <ul className="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1">
-                {history.length === 0 && (
-                  <li className="rounded-xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-500">
-                    Nenhuma consulta anterior registrada.
-                  </li>
-                )}
-                {history.map((appt) => (
-                  <li
-                    key={appt.id}
-                    className="flex flex-col gap-1 rounded-lg border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <span className="text-slate-800">
-                      {new Date(appt.date).toLocaleString('pt-BR')}
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {account.role === 'PATIENT' && (
-                        <span className="text-slate-600">
-                          Dr. {doctorNames[appt.doctorId] ?? '—'}
-                        </span>
-                      )}
-                      {account.role === 'DOCTOR' && (
-                        <span className="text-slate-600">Paciente ID {appt.patientId}</span>
-                      )}
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
-                        {appt.status}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <AppointmentsHistoryCard
+              history={history}
+              userRole={account.role}
+              doctorNames={doctorNames}
+            />
           </div>
         </div>
       </div>

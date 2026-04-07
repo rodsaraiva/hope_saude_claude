@@ -14,7 +14,12 @@ describe('AppointmentService', () => {
           provide: PrismaService,
           useValue: {
             appointment: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
-            pendingCheckout: { create: jest.fn(), findMany: jest.fn(), findFirst: jest.fn(), delete: jest.fn() },
+            pendingCheckout: {
+              create: jest.fn(),
+              findMany: jest.fn(),
+              findFirst: jest.fn(),
+              delete: jest.fn(),
+            },
           },
         },
       ],
@@ -63,7 +68,10 @@ describe('AppointmentService', () => {
   });
 
   it('should find pending checkout by patient and Asaas payment id', async () => {
-    (prisma.pendingCheckout.findFirst as jest.Mock).mockResolvedValue({ id: 1, asaasPaymentId: 'pay_x' });
+    (prisma.pendingCheckout.findFirst as jest.Mock).mockResolvedValue({
+      id: 1,
+      asaasPaymentId: 'pay_x',
+    });
     const row = await service.findPendingCheckoutByPatientAndPayment(3, 'pay_x');
     expect(prisma.pendingCheckout.findFirst).toHaveBeenCalledWith({
       where: { patientId: 3, asaasPaymentId: 'pay_x' },

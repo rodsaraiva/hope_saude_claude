@@ -46,9 +46,7 @@ export default function Navbar() {
           >
             H
           </span>
-          <span className="text-lg font-semibold tracking-tight text-slate-900">
-            Hope Saúde
-          </span>
+          <span className="text-lg font-semibold tracking-tight text-slate-900">Hope Saúde</span>
         </Link>
         <nav className="flex items-center gap-3 sm:gap-4" aria-label="Principal">
           {isLoggedIn ? (

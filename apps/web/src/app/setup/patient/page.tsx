@@ -39,7 +39,8 @@ export default function PatientSetupPage() {
       });
       window.location.href = '/profile';
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao configurar perfil. Tente novamente.';
+      const msg =
+        err instanceof Error ? err.message : 'Erro ao configurar perfil. Tente novamente.';
       setError(msg);
     } finally {
       setLoading(false);

@@ -7,7 +7,12 @@ export function useVideoCall(appointmentId: string) {
 
   const [token, setToken] = useState<string | undefined>();
   const [livekitUrl, setLivekitUrl] = useState<string | undefined>();
-  const [appointment, setAppointment] = useState<{ id: number; patientId: number; patientName: string; doctorId: number } | null>(null);
+  const [appointment, setAppointment] = useState<{
+    id: number;
+    patientId: number;
+    patientName: string;
+    doctorId: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +28,7 @@ export function useVideoCall(appointmentId: string) {
         }
       } catch (err: any) {
         if (err.name === 'AbortError') return;
-        
+
         if (err.status === 401) {
           router.replace('/login');
           return;

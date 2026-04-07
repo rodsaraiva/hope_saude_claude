@@ -1,4 +1,6 @@
-export function splitAppointmentsByDate<T extends { date: string }>(appointments: T[]): {
+export function splitAppointmentsByDate<T extends { date: string }>(
+  appointments: T[],
+): {
   upcoming: T[];
   history: T[];
 } {

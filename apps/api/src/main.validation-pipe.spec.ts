@@ -28,9 +28,7 @@ describe('ValidationPipe (global) — segurança contra mass assignment', () => 
       createdAt: new Date(),
     };
 
-    await expect(pipe.transform(payloadMalicioso, metadata)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(pipe.transform(payloadMalicioso, metadata)).rejects.toThrow(BadRequestException);
   });
 
   it('aceita payload válido e remove nada que seja permitido', async () => {
@@ -52,8 +50,6 @@ describe('ValidationPipe (global) — segurança contra mass assignment', () => 
       role: 'PATIENT',
     };
 
-    await expect(pipe.transform(payload, metadata)).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(pipe.transform(payload, metadata)).rejects.toThrow(BadRequestException);
   });
 });

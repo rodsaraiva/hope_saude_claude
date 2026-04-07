@@ -61,7 +61,10 @@ describe('AsaasService', () => {
     } as any);
 
     const customer = await service.createCustomer('John Doe', 'john@test.com', '12345678909');
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/customers'), expect.any(Object));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/customers'),
+      expect.any(Object),
+    );
     expect(customer.id).toBe('cus_123');
   });
 
@@ -72,9 +75,12 @@ describe('AsaasService', () => {
     } as any);
 
     const payment = await service.createPayment('cus_123', 150, 'PIX', 'Consulta Psiquiátrica');
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/payments'), expect.objectContaining({
-      method: 'POST',
-    }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/payments'),
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
     const call = (global.fetch as jest.Mock).mock.calls[0];
     const body = JSON.parse((call[1] as RequestInit).body as string);
     expect(body.billingType).toBe('PIX');
@@ -134,9 +140,12 @@ describe('AsaasService', () => {
     } as any);
 
     const payment = await service.getPaymentStatus('pay_123');
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/payments/pay_123'), expect.objectContaining({
-      method: 'GET'
-    }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/payments/pay_123'),
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
     expect(payment.status).toBe('RECEIVED');
   });
 
@@ -151,9 +160,12 @@ describe('AsaasService', () => {
     } as any);
 
     const pixData = await service.getPixQrCode('pay_123');
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/payments/pay_123/pixQrCode'), expect.objectContaining({
-      method: 'GET'
-    }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/payments/pay_123/pixQrCode'),
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
     expect(pixData.encodedImage).toBe('base64_qr_code');
     expect(pixData.payload).toBe('pix_copy_paste_code');
   });
@@ -165,10 +177,12 @@ describe('AsaasService', () => {
     } as any);
 
     const result = await service.receiveInSandbox('pay_123');
-    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/payments/pay_123/receiveInSandbox'), expect.objectContaining({
-      method: 'POST'
-    }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/payments/pay_123/receiveInSandbox'),
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
     expect(result.status).toBe('RECEIVED');
   });
 });
-

@@ -68,7 +68,11 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
     setError(null);
     try {
       if (isEditingId) {
-        const updated = await updateConsultationModel(isEditingId, { name, durationMinutes, price });
+        const updated = await updateConsultationModel(isEditingId, {
+          name,
+          durationMinutes,
+          price,
+        });
         const newModels = models.map((m) => (m.id === isEditingId ? updated : m));
         setModels(newModels);
         onModelsChange(newModels);
@@ -88,7 +92,7 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Tem certeza que deseja excluir este modelo de consulta?')) return;
-    
+
     setIsLoading(true);
     setError(null);
     try {
@@ -108,7 +112,9 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Modelos de Consulta</h2>
-          <p className="text-sm text-slate-500">Defina os tipos de consulta, suas durações e preços.</p>
+          <p className="text-sm text-slate-500">
+            Defina os tipos de consulta, suas durações e preços.
+          </p>
         </div>
         {!isCreating && !isEditingId && (
           <button
@@ -121,11 +127,7 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
         )}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>}
 
       {(isCreating || isEditingId) && (
         <div className="mb-6 rounded-xl border border-sky-100 bg-sky-50/50 p-4 animate-in fade-in zoom-in-95 duration-200">
@@ -134,7 +136,9 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
           </h3>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Nome do Modelo</label>
+              <label className="block text-xs font-bold uppercase text-slate-500 mb-1">
+                Nome do Modelo
+              </label>
               <input
                 type="text"
                 placeholder="Ex: Primeira Consulta"
@@ -144,7 +148,9 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Duração (minutos)</label>
+              <label className="block text-xs font-bold uppercase text-slate-500 mb-1">
+                Duração (minutos)
+              </label>
               <div className="relative">
                 <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -158,7 +164,9 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Preço (R$)</label>
+              <label className="block text-xs font-bold uppercase text-slate-500 mb-1">
+                Preço (R$)
+              </label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -199,7 +207,10 @@ export function ConsultationModelsManager({ initialModels, onModelsChange }: Pro
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {models.map((m) => (
-            <div key={m.id} className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-sky-200 transition-colors">
+            <div
+              key={m.id}
+              className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-sky-200 transition-colors"
+            >
               <div>
                 <h4 className="font-bold text-slate-800">{m.name}</h4>
                 <div className="mt-2 flex items-center gap-4 text-sm text-slate-600">

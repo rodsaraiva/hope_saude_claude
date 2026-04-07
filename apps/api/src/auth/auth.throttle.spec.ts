@@ -13,9 +13,7 @@ describe('AuthController — rate limiting', () => {
     const handler = (AuthController.prototype as any)[methodName];
     // @Throttle guarda a config em metadata prefixado com THROTTLER:LIMIT
     const keys = Reflect.getMetadataKeys(handler) as string[];
-    const throttleKey = keys.find((k) =>
-      typeof k === 'string' && k.startsWith('THROTTLER'),
-    );
+    const throttleKey = keys.find((k) => typeof k === 'string' && k.startsWith('THROTTLER'));
     return throttleKey ? Reflect.getMetadata(throttleKey, handler) : undefined;
   };
 

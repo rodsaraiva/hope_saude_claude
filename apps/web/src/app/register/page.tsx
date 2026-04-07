@@ -23,11 +23,11 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const data = await api.post<any>('/auth/register', { 
-        name, 
-        email, 
-        password, 
-        role 
+      const data = await api.post<any>('/auth/register', {
+        name,
+        email,
+        password,
+        role,
       });
 
       if (data.access_token) {
@@ -54,7 +54,9 @@ export default function RegisterPage() {
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
             Criar sua <span className="text-sky-600">conta</span>
           </h1>
-          <p className="mt-2 text-slate-600">Junte-se à Hope Saúde e tenha acesso à melhor telepsiquiatria</p>
+          <p className="mt-2 text-slate-600">
+            Junte-se à Hope Saúde e tenha acesso à melhor telepsiquiatria
+          </p>
         </div>
 
         {/* Register Card */}
@@ -79,7 +81,9 @@ export default function RegisterPage() {
                       : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  <UserPlus className={`h-6 w-6 ${role === 'PATIENT' ? 'text-sky-600' : 'text-slate-400'}`} />
+                  <UserPlus
+                    className={`h-6 w-6 ${role === 'PATIENT' ? 'text-sky-600' : 'text-slate-400'}`}
+                  />
                   <span className="text-sm font-bold">Paciente</span>
                 </button>
                 <button
@@ -91,7 +95,9 @@ export default function RegisterPage() {
                       : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  <Stethoscope className={`h-6 w-6 ${role === 'DOCTOR' ? 'text-sky-600' : 'text-slate-400'}`} />
+                  <Stethoscope
+                    className={`h-6 w-6 ${role === 'DOCTOR' ? 'text-sky-600' : 'text-slate-400'}`}
+                  />
                   <span className="text-sm font-bold">Médico</span>
                 </button>
               </div>
@@ -100,7 +106,9 @@ export default function RegisterPage() {
             <div className="space-y-4">
               {/* Name Field */}
               <div className="space-y-1.5">
-                <label htmlFor="name" className="text-sm font-semibold text-slate-700">Nome Completo</label>
+                <label htmlFor="name" className="text-sm font-semibold text-slate-700">
+                  Nome Completo
+                </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <User className="h-4 w-4 text-slate-400" />
@@ -119,7 +127,9 @@ export default function RegisterPage() {
 
               {/* Email Field */}
               <div className="space-y-1.5">
-                <label htmlFor="email" className="text-sm font-semibold text-slate-700">E-mail</label>
+                <label htmlFor="email" className="text-sm font-semibold text-slate-700">
+                  E-mail
+                </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <Mail className="h-4 w-4 text-slate-400" />
@@ -138,7 +148,9 @@ export default function RegisterPage() {
 
               {/* Password Field */}
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-sm font-semibold text-slate-700">Crie uma senha segura</label>
+                <label htmlFor="password" className="text-sm font-semibold text-slate-700">
+                  Crie uma senha segura
+                </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <Lock className="h-4 w-4 text-slate-400" />
@@ -169,11 +181,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="flex w-full items-center justify-center rounded-xl bg-sky-600 py-3 text-sm font-bold text-white transition-all hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:opacity-70"
             >
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                'Criar minha conta'
-              )}
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Criar minha conta'}
             </button>
           </form>
 

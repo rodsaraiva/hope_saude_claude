@@ -50,7 +50,7 @@ export function DeleteConfirmModal({
             <Calendar className="h-5 w-5 text-sky-600" />
             Excluir apenas este horário
           </button>
-          
+
           <button
             onClick={onRemoveAll}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-4 font-bold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700"

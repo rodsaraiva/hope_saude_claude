@@ -1,7 +1,7 @@
 export type Slot = {
   id: number;
   date?: string; // YYYY-MM-DD
-  day?: string;  // Segunda, etc.
+  day?: string; // Segunda, etc.
   start: string;
   end: string;
   recurrence?: 'NONE' | 'WEEKLY' | 'DAILY' | 'WEEKDAYS' | 'BIWEEKLY';
@@ -54,13 +54,13 @@ export function doesSlotApplyToDate(slot: Slot, date: Date): boolean {
     if (recurrence === 'DAILY') return true;
     if (recurrence === 'WEEKDAYS') return date.getDay() >= 1 && date.getDay() <= 5;
     if (recurrence === 'BIWEEKLY') {
-       // simplificação na UI: mostrar nas semanas pares/ímpares baseado em alguma logica ou apenas WEEKLY por compatibilidade
-       // aqui faremos simplificado: só vamos retornar true se for a mesma paridade de semana
-       if (slot.day !== dayName) return false;
-       const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-       const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-       const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-       return weekNumber % 2 !== 0;
+      // simplificação na UI: mostrar nas semanas pares/ímpares baseado em alguma logica ou apenas WEEKLY por compatibilidade
+      // aqui faremos simplificado: só vamos retornar true se for a mesma paridade de semana
+      if (slot.day !== dayName) return false;
+      const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+      const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+      const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      return weekNumber % 2 !== 0;
     }
   }
 
@@ -85,7 +85,7 @@ export function getWeekDays(baseDate: Date): Date[] {
 /** Retorna os dias de um mês num grid de 6 semanas (42 dias). */
 export function getMonthDaysGrid(year: number, month: number): Date[] {
   const firstDay = new Date(year, month, 1);
-  const startDiff = firstDay.getDay(); 
+  const startDiff = firstDay.getDay();
   const startGrid = new Date(firstDay);
   startGrid.setDate(firstDay.getDate() - startDiff);
 
@@ -114,7 +114,7 @@ export function mergeSlots(slots: Slot[]): Slot[] {
   // Group slots by sua chave identificadora (seja a date pra slots novos, ou o day pra legados)
   const slotsByKey: Record<string, Slot[]> = {};
   for (const slot of slots) {
-    const key = slot.date ? slot.date : (slot.day || 'unknown');
+    const key = slot.date ? slot.date : slot.day || 'unknown';
     if (!slotsByKey[key]) {
       slotsByKey[key] = [];
     }

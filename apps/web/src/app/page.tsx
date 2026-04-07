@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  CalendarDays,
-  CreditCard,
-  Shield,
-  Sparkles,
-  UserCircle2,
-  Video,
-} from 'lucide-react';
+import { CalendarDays, CreditCard, Shield, Sparkles, UserCircle2, Video } from 'lucide-react';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -47,8 +40,8 @@ export default function Home() {
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600 md:mx-0">
-              Agende consultas com psiquiatras credenciados, realize videochamadas seguras e pague de
-              forma simples — tudo em um só lugar, pensado para pacientes e profissionais.
+              Agende consultas com psiquiatras credenciados, realize videochamadas seguras e pague
+              de forma simples — tudo em um só lugar, pensado para pacientes e profissionais.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4 md:justify-start">
               {isLoggedIn ? (

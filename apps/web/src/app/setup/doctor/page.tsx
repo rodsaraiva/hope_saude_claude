@@ -32,7 +32,8 @@ export default function DoctorSetupPage() {
       });
       window.location.href = '/dashboard/doctor';
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao configurar perfil. Tente novamente.';
+      const msg =
+        err instanceof Error ? err.message : 'Erro ao configurar perfil. Tente novamente.';
       setError(msg);
     } finally {
       setLoading(false);

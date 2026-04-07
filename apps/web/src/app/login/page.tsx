@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     try {
       const data = await api.post<any>('/auth/login', { email, password });
-      
+
       if (data.access_token) {
         persistSessionAndRedirect(data.access_token);
         return;

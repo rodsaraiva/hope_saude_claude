@@ -56,7 +56,7 @@ describe('LacunaProvider', () => {
       }),
       expect.objectContaining({
         headers: { Authorization: 'Bearer mock-api-key' },
-      })
+      }),
     );
 
     expect(result.signature).toBe(signatureResponse);

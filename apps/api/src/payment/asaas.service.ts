@@ -8,7 +8,8 @@ export class AsaasService {
   private readonly apiKey: string;
 
   constructor(private configService: ConfigService) {
-    this.apiUrl = this.configService.get<string>('ASAAS_API_URL') || 'https://sandbox.asaas.com/api/v3';
+    this.apiUrl =
+      this.configService.get<string>('ASAAS_API_URL') || 'https://sandbox.asaas.com/api/v3';
     this.apiKey = this.configService.get<string>('ASAAS_API_KEY') || 'MOCK_API_KEY';
   }
 
@@ -28,7 +29,10 @@ export class AsaasService {
       return response;
     } catch (err: any) {
       this.logger.error(`Asaas fetch error: ${err.message}`);
-      if (err.cause) this.logger.error(`Cause: ${JSON.stringify(err.cause, Object.getOwnPropertyNames(err.cause))}`);
+      if (err.cause)
+        this.logger.error(
+          `Cause: ${JSON.stringify(err.cause, Object.getOwnPropertyNames(err.cause))}`,
+        );
       throw err;
     }
   }
@@ -44,13 +48,10 @@ export class AsaasService {
     const digits = cpfCnpj.replace(/\D/g, '');
     if (!digits) return null;
 
-    const response = await this.asaasFetch(
-      `/customers?cpfCnpj=${encodeURIComponent(digits)}`,
-      {
-        method: 'GET',
-        headers: this.authHeaders,
-      },
-    );
+    const response = await this.asaasFetch(`/customers?cpfCnpj=${encodeURIComponent(digits)}`, {
+      method: 'GET',
+      headers: this.authHeaders,
+    });
 
     if (!response.ok) {
       return null;
@@ -145,7 +146,10 @@ export class AsaasService {
     });
 
     if (!response.ok) {
-      throw new HttpException('Falha ao obter status do pagamento no Asaas', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Falha ao obter status do pagamento no Asaas',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     return response.json();
   }

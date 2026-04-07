@@ -1,6 +1,6 @@
 export interface SignatureResult {
   signature: string; // O resultado da assinatura (ex: CMS ou PKCS#1 em base64/hex)
-  hash: string;      // O hash que foi assinado
+  hash: string; // O hash que foi assinado
   signatureDate: Date;
   signerInfo?: string; // Informações adicionais do signatário (ex: nome, CPF do certificado)
 }

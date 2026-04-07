@@ -9,7 +9,7 @@ export async function fetchDoctorAvailableSlots(
   doctorUserId: number,
   fromIso: string,
   toIso: string,
-  durationMinutes?: number
+  durationMinutes?: number,
 ): Promise<AvailableSlotsResponse> {
   const params: Record<string, any> = { from: fromIso, to: toIso };
   if (durationMinutes) params.durationMinutes = durationMinutes;

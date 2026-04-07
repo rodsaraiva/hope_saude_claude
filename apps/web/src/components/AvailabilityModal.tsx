@@ -37,7 +37,9 @@ export function AvailabilityModal({
   const [date, setDate] = useState('');
   const [start, setStart] = useState('08:00');
   const [end, setEnd] = useState('09:00');
-  const [recurrence, setRecurrence] = useState<'NONE' | 'WEEKLY' | 'DAILY' | 'WEEKDAYS' | 'BIWEEKLY'>('NONE');
+  const [recurrence, setRecurrence] = useState<
+    'NONE' | 'WEEKLY' | 'DAILY' | 'WEEKDAYS' | 'BIWEEKLY'
+  >('NONE');
   const [isRecurrenceChecked, setIsRecurrenceChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,7 +104,10 @@ export function AvailabilityModal({
         )}
 
         <div className="space-y-2">
-          <label htmlFor="slot-date" className="flex items-center gap-2 text-sm font-bold text-slate-700">
+          <label
+            htmlFor="slot-date"
+            className="flex items-center gap-2 text-sm font-bold text-slate-700"
+          >
             <Calendar className="h-4 w-4 text-sky-600" />
             Data
           </label>
@@ -120,7 +125,10 @@ export function AvailabilityModal({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label htmlFor="slot-start" className="flex items-center gap-2 text-sm font-bold text-slate-700">
+            <label
+              htmlFor="slot-start"
+              className="flex items-center gap-2 text-sm font-bold text-slate-700"
+            >
               <Clock className="h-4 w-4 text-sky-600" />
               Início
             </label>
@@ -141,7 +149,10 @@ export function AvailabilityModal({
             </select>
           </div>
           <div className="space-y-2">
-            <label htmlFor="slot-end" className="flex items-center gap-2 text-sm font-bold text-slate-700">
+            <label
+              htmlFor="slot-end"
+              className="flex items-center gap-2 text-sm font-bold text-slate-700"
+            >
               <Clock className="h-4 w-4 text-sky-600" />
               Fim
             </label>
@@ -171,21 +182,30 @@ export function AvailabilityModal({
             aria-pressed={isRecurrenceChecked}
           >
             <div className="flex items-center gap-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isRecurrenceChecked ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'}`}>
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-lg ${isRecurrenceChecked ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-400'}`}
+              >
                 <RotateCcw className="h-5 w-5" />
               </div>
               <span className="text-sm font-bold text-slate-700">Repetir este horário</span>
             </div>
-            
+
             <div className="relative inline-flex h-6 w-11 items-center transition-colors focus:outline-none">
-              <div className={`h-6 w-11 rounded-full transition-colors ${isRecurrenceChecked ? 'bg-sky-600' : 'bg-slate-200'}`}></div>
-              <div className={`absolute left-1 h-4 w-4 rounded-full bg-white transition-transform ${isRecurrenceChecked ? 'translate-x-5' : 'translate-x-0'}`}></div>
+              <div
+                className={`h-6 w-11 rounded-full transition-colors ${isRecurrenceChecked ? 'bg-sky-600' : 'bg-slate-200'}`}
+              ></div>
+              <div
+                className={`absolute left-1 h-4 w-4 rounded-full bg-white transition-transform ${isRecurrenceChecked ? 'translate-x-5' : 'translate-x-0'}`}
+              ></div>
             </div>
           </button>
 
           {isRecurrenceChecked && (
             <div className="border-t border-slate-100 bg-slate-50/50 p-4 animate-in slide-in-from-top-2 duration-300">
-              <label htmlFor="slot-recurrence" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <label
+                htmlFor="slot-recurrence"
+                className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-400"
+              >
                 Frequência
               </label>
               <div className="relative">

@@ -59,13 +59,21 @@ describe('doctor-dashboard-api', () => {
     it('createConsultationModel', async () => {
       jest.mocked(api.post).mockResolvedValue({ id: 1 });
       await createConsultationModel({ name: 'A', durationMinutes: 30, price: 50 });
-      expect(api.post).toHaveBeenCalledWith('/profile/doctor/consultation-models', { name: 'A', durationMinutes: 30, price: 50 });
+      expect(api.post).toHaveBeenCalledWith('/profile/doctor/consultation-models', {
+        name: 'A',
+        durationMinutes: 30,
+        price: 50,
+      });
     });
 
     it('updateConsultationModel', async () => {
       jest.mocked(api.post).mockResolvedValue({ id: 1 });
       await updateConsultationModel(1, { name: 'B', durationMinutes: 45, price: 100 });
-      expect(api.post).toHaveBeenCalledWith('/profile/doctor/consultation-models/1', { name: 'B', durationMinutes: 45, price: 100 });
+      expect(api.post).toHaveBeenCalledWith('/profile/doctor/consultation-models/1', {
+        name: 'B',
+        durationMinutes: 45,
+        price: 100,
+      });
     });
 
     it('deleteConsultationModel', async () => {

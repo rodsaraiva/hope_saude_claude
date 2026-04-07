@@ -1,17 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, Clock, History, Loader2, FileText, Plus, CheckCircle2, Trash2, Pill, AlertCircle, ShieldCheck } from 'lucide-react';
+import {
+  X,
+  Save,
+  Clock,
+  History,
+  Loader2,
+  FileText,
+  Plus,
+  CheckCircle2,
+  Trash2,
+  Pill,
+  AlertCircle,
+  ShieldCheck,
+} from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
-import { 
-  fetchPrescriptions, 
-  createPrescription, 
-  updatePrescription, 
+import {
+  fetchPrescriptions,
+  createPrescription,
+  updatePrescription,
   getLacunaAuthorizeUrl,
   type Prescription,
-  type Medication
+  type Medication,
 } from '@/lib/doctor-dashboard-api';
+import { ModalBackdrop } from './ui/ModalBackdrop';
 
 interface Props {
   isOpen: boolean;
@@ -22,7 +36,14 @@ interface Props {
   isInline?: boolean;
 }
 
-export function PrescriptionModal({ isOpen, onClose, patientId, patientName, appointmentId, isInline = false }: Props) {
+export function PrescriptionModal({
+  isOpen,
+  onClose,
+  patientId,
+  patientName,
+  appointmentId,
+  isInline = false,
+}: Props) {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,9 +64,9 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
     try {
       const data = await fetchPrescriptions(patientId);
       setPrescriptions(data);
-      
+
       if (appointmentId) {
-        const prescription = data.find(p => p.appointmentId === appointmentId);
+        const prescription = data.find((p) => p.appointmentId === appointmentId);
         if (prescription) {
           setEditingId(prescription.id);
           setMedications(JSON.parse(prescription.medications));
@@ -112,11 +133,16 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
 
   const handleSign = async () => {
     if (!editingId) return;
-    if (!confirm('Deseja assinar esta receita digitalmente (BirdID, VidaaS, NeoID)? Após a assinatura digital, ela não poderá mais ser editada.')) return;
-    
+    if (
+      !confirm(
+        'Deseja assinar esta receita digitalmente (BirdID, VidaaS, NeoID)? Após a assinatura digital, ela não poderá mais ser editada.',
+      )
+    )
+      return;
+
     localStorage.setItem('pending_signature_record_id', String(editingId));
     localStorage.setItem('pending_signature_type', 'prescription');
-    
+
     const url = getLacunaAuthorizeUrl(editingId, 'prescription');
     window.location.href = url;
   };
@@ -124,7 +150,9 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
   if (!isOpen && !isInline) return null;
 
   const contentMarkup = (
-    <div className={`flex flex-col w-full bg-white ${isInline ? 'h-full' : 'max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl'}`}>
+    <div
+      className={`flex flex-col w-full bg-white ${isInline ? 'h-full' : 'max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl'}`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
         <div>
@@ -134,7 +162,10 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
           </h3>
         </div>
         {!isInline && (
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 transition-colors">
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 transition-colors"
+          >
             <X className="h-5 w-5" />
           </button>
         )}
@@ -142,19 +173,23 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
 
       {/* Tabs */}
       <div className="flex border-b border-slate-50 px-6 bg-white">
-        <button 
+        <button
           onClick={() => setView('new')}
           className={`flex items-center gap-2 border-b-2 py-3 px-1 text-sm font-bold transition-colors ${
-            view === 'new' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            view === 'new'
+              ? 'border-emerald-600 text-emerald-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
           <Plus className="h-4 w-4" />
           {editingId ? 'Editar Receita' : 'Nova Receita'}
         </button>
-        <button 
+        <button
           onClick={() => setView('history')}
           className={`flex items-center gap-2 border-b-2 py-3 px-1 text-sm font-bold transition-colors ml-4 ${
-            view === 'history' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            view === 'history'
+              ? 'border-emerald-600 text-emerald-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
           <History className="h-4 w-4" />
@@ -176,8 +211,12 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 flex items-start gap-3">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-bold text-emerald-900">Esta receita já foi assinada</p>
-                    <p className="text-xs text-emerald-700 mt-1">Documentos assinados digitalmente não podem ser alterados.</p>
+                    <p className="text-sm font-bold text-emerald-900">
+                      Esta receita já foi assinada
+                    </p>
+                    <p className="text-xs text-emerald-700 mt-1">
+                      Documentos assinados digitalmente não podem ser alterados.
+                    </p>
                   </div>
                 </div>
                 {currentPrescription.signedHash && (
@@ -196,9 +235,11 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Medicamentos</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Medicamentos
+                </h4>
                 {currentPrescription?.status !== 'SIGNED' && (
-                  <button 
+                  <button
                     onClick={handleAddMedication}
                     className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
                   >
@@ -208,9 +249,12 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
               </div>
 
               {medications.map((med, index) => (
-                <div key={index} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3 relative group">
+                <div
+                  key={index}
+                  className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3 relative group"
+                >
                   {currentPrescription?.status !== 'SIGNED' && (
-                    <button 
+                    <button
                       onClick={() => handleRemoveMedication(index)}
                       className="absolute top-2 right-2 text-slate-300 hover:text-red-500 transition-colors"
                     >
@@ -219,8 +263,10 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Medicamento</label>
-                      <input 
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        Medicamento
+                      </label>
+                      <input
                         disabled={currentPrescription?.status === 'SIGNED'}
                         value={med.name}
                         onChange={(e) => handleMedicationChange(index, 'name', e.target.value)}
@@ -229,8 +275,10 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Dosagem / Posologia</label>
-                      <input 
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        Dosagem / Posologia
+                      </label>
+                      <input
                         disabled={currentPrescription?.status === 'SIGNED'}
                         value={med.dosage}
                         onChange={(e) => handleMedicationChange(index, 'dosage', e.target.value)}
@@ -241,8 +289,10 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Frequência</label>
-                      <input 
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        Frequência
+                      </label>
+                      <input
                         disabled={currentPrescription?.status === 'SIGNED'}
                         value={med.frequency}
                         onChange={(e) => handleMedicationChange(index, 'frequency', e.target.value)}
@@ -251,11 +301,15 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Orientações Adicionais</label>
-                      <input 
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        Orientações Adicionais
+                      </label>
+                      <input
                         disabled={currentPrescription?.status === 'SIGNED'}
                         value={med.instructions}
-                        onChange={(e) => handleMedicationChange(index, 'instructions', e.target.value)}
+                        onChange={(e) =>
+                          handleMedicationChange(index, 'instructions', e.target.value)
+                        }
                         placeholder="Ex: Tomar após as refeições"
                         className="w-full text-sm border-slate-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                       />
@@ -271,8 +325,10 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
               )}
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Observações Gerais</label>
-                <textarea 
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Observações Gerais
+                </label>
+                <textarea
                   disabled={currentPrescription?.status === 'SIGNED'}
                   value={observations}
                   onChange={(e) => setObservations(e.target.value)}
@@ -299,7 +355,11 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
                   onClick={handleSave}
                   className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50 active:scale-95"
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   Salvar Rascunho
                 </button>
               </div>
@@ -316,7 +376,10 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
               prescriptions.map((p) => {
                 const meds = JSON.parse(p.medications) as Medication[];
                 return (
-                  <div key={p.id} className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md">
+                  <div
+                    key={p.id}
+                    className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md"
+                  >
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">
@@ -333,7 +396,7 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
                           </div>
                         )}
                       </div>
-                      <button 
+                      <button
                         onClick={() => {
                           setEditingId(p.id);
                           setMedications(meds);
@@ -365,7 +428,10 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
       {/* Footer */}
       {!isInline && (
         <div className="border-t border-slate-100 p-4 bg-slate-50 flex justify-end">
-          <button onClick={onClose} className="text-sm font-bold text-slate-600 hover:text-slate-900 px-4 py-2 transition hover:bg-slate-200 rounded-lg">
+          <button
+            onClick={onClose}
+            className="text-sm font-bold text-slate-600 hover:text-slate-900 px-4 py-2 transition hover:bg-slate-200 rounded-lg"
+          >
             Fechar
           </button>
         </div>
@@ -376,8 +442,8 @@ export function PrescriptionModal({ isOpen, onClose, patientId, patientName, app
   if (isInline) return contentMarkup;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <ModalBackdrop onClose={onClose} label="Receita médica" className="z-[60]">
       {contentMarkup}
-    </div>
+    </ModalBackdrop>
   );
 }

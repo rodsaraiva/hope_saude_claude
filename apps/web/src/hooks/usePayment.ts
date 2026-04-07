@@ -12,7 +12,13 @@ interface UsePaymentProps {
   onMissingProfile: () => void;
 }
 
-export function usePayment({ open, doctorUserId, dateIso, consultationModelId, onMissingProfile }: UsePaymentProps) {
+export function usePayment({
+  open,
+  doctorUserId,
+  dateIso,
+  consultationModelId,
+  onMissingProfile,
+}: UsePaymentProps) {
   const [tab, setTab] = useState<Tab>('pix');
 
   // PIX State
@@ -58,7 +64,7 @@ export function usePayment({ open, doctorUserId, dateIso, consultationModelId, o
       setCardPaymentId(null);
       setManualConfirmSuccess(false);
       setCardError(null);
-      
+
       // Also reset form
       setHolderName('');
       setNumber('');
@@ -107,8 +113,10 @@ export function usePayment({ open, doctorUserId, dateIso, consultationModelId, o
         setPixChargeLoading(false);
         setPixQrLoading(true);
 
-        const qr = await api.get<any>(`/payments/pix-qr/${encodeURIComponent(paymentId)}`, { signal: ac.signal });
-        
+        const qr = await api.get<any>(`/payments/pix-qr/${encodeURIComponent(paymentId)}`, {
+          signal: ac.signal,
+        });
+
         setPixData((prev) =>
           prev
             ? {
@@ -122,13 +130,13 @@ export function usePayment({ open, doctorUserId, dateIso, consultationModelId, o
         pixDoneKeyRef.current = sessionKey;
       } catch (err: any) {
         if (err.name === 'AbortError') return;
-        
+
         if (err.status === 400 && err.data?.code === 'MISSING_PATIENT_PROFILE') {
           onMissingProfile();
           return;
         }
 
-        const errorMessage = err.status ? (err.message || 'Erro na requisição') : 'Falha de conexão.';
+        const errorMessage = err.status ? err.message || 'Erro na requisição' : 'Falha de conexão.';
 
         if (!pixData) {
           setPixError(errorMessage);
@@ -149,46 +157,63 @@ export function usePayment({ open, doctorUserId, dateIso, consultationModelId, o
   }, [open, tab, doctorUserId, dateIso, onMissingProfile]);
 
   // Card Submit Logic
-  const submitCard = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCardError(null);
-    setCardLoading(true);
-    try {
-      const payload: Record<string, any> = {
-        doctorId: doctorUserId,
-        date: dateIso,
-        paymentMethod: 'CREDIT_CARD',
-        creditCard: {
-          holderName,
-          number,
-          expiryMonth,
-          expiryYear,
-          ccv,
-        },
-        creditCardHolderInfo: {
-          postalCode,
-          addressNumber,
-          mobilePhone: mobilePhone || undefined,
-        },
-      };
-      if (consultationModelId) payload.consultationModelId = consultationModelId;
+  const submitCard = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setCardError(null);
+      setCardLoading(true);
+      try {
+        const payload: Record<string, any> = {
+          doctorId: doctorUserId,
+          date: dateIso,
+          paymentMethod: 'CREDIT_CARD',
+          creditCard: {
+            holderName,
+            number,
+            expiryMonth,
+            expiryYear,
+            ccv,
+          },
+          creditCardHolderInfo: {
+            postalCode,
+            addressNumber,
+            mobilePhone: mobilePhone || undefined,
+          },
+        };
+        if (consultationModelId) payload.consultationModelId = consultationModelId;
 
-      const resp = await api.post<any>('/payments/checkout', payload);
-      setCardPaymentId(resp.paymentId);
-      setCardDone(true);
-    } catch (err: any) {
-      if (err.status === 400 && err.data?.code === 'MISSING_PATIENT_PROFILE') {
-        onMissingProfile();
-        return;
+        const resp = await api.post<any>('/payments/checkout', payload);
+        setCardPaymentId(resp.paymentId);
+        setCardDone(true);
+      } catch (err: any) {
+        if (err.status === 400 && err.data?.code === 'MISSING_PATIENT_PROFILE') {
+          onMissingProfile();
+          return;
+        }
+        setCardError(
+          err.status
+            ? err.message || 'Pagamento não autorizado. Verifique os dados.'
+            : 'Falha de conexão.',
+        );
+      } finally {
+        setCardLoading(false);
       }
-      setCardError(err.status ? (err.message || 'Pagamento não autorizado. Verifique os dados.') : 'Falha de conexão.');
-    } finally {
-      setCardLoading(false);
-    }
-  }, [
-    doctorUserId, dateIso, consultationModelId, holderName, number, expiryMonth, expiryYear, ccv,
-    postalCode, addressNumber, mobilePhone, onMissingProfile
-  ]);
+    },
+    [
+      doctorUserId,
+      dateIso,
+      consultationModelId,
+      holderName,
+      number,
+      expiryMonth,
+      expiryYear,
+      ccv,
+      postalCode,
+      addressNumber,
+      mobilePhone,
+      onMissingProfile,
+    ],
+  );
 
   const confirmManualPayment = useCallback(async (paymentId: string) => {
     setManualConfirmLoading(true);
@@ -219,20 +244,28 @@ export function usePayment({ open, doctorUserId, dateIso, consultationModelId, o
       error: cardError,
       submit: submitCard,
       form: {
-        holderName, setHolderName,
-        number, setNumber,
-        expiryMonth, setExpiryMonth,
-        expiryYear, setExpiryYear,
-        ccv, setCcv,
-        postalCode, setPostalCode,
-        addressNumber, setAddressNumber,
-        mobilePhone, setMobilePhone,
-      }
+        holderName,
+        setHolderName,
+        number,
+        setNumber,
+        expiryMonth,
+        setExpiryMonth,
+        expiryYear,
+        setExpiryYear,
+        ccv,
+        setCcv,
+        postalCode,
+        setPostalCode,
+        addressNumber,
+        setAddressNumber,
+        mobilePhone,
+        setMobilePhone,
+      },
     },
     manual: {
       confirm: confirmManualPayment,
       loading: manualConfirmLoading,
       success: manualConfirmSuccess,
-    }
+    },
   };
 }

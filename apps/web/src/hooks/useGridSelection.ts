@@ -29,7 +29,7 @@ export function useGridSelection(onSelect?: (day: string, start: string, end: st
       if (onSelect) {
         const [hStart] = selection.start.split(':').map(Number);
         const [hEnd] = selection.end.split(':').map(Number);
-        
+
         if (hStart > hEnd) {
           onSelect(selection.day, selection.end, selection.start);
         } else {

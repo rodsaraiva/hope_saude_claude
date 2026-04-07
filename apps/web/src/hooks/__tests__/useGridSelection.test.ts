@@ -9,7 +9,7 @@ describe('useGridSelection', () => {
 
   it('deve iniciar seleção no mouseDown', () => {
     const { result } = renderHook(() => useGridSelection());
-    
+
     act(() => {
       result.current.handleMouseDown('Segunda', '08:00');
     });
@@ -23,7 +23,7 @@ describe('useGridSelection', () => {
 
   it('deve atualizar o fim da seleção no mouseEnter se for no mesmo dia', () => {
     const { result } = renderHook(() => useGridSelection());
-    
+
     act(() => {
       result.current.handleMouseDown('Segunda', '08:00');
     });
@@ -37,7 +37,7 @@ describe('useGridSelection', () => {
 
   it('não deve atualizar seleção se mudar de dia durante o arrasto', () => {
     const { result } = renderHook(() => useGridSelection());
-    
+
     act(() => {
       result.current.handleMouseDown('Segunda', '08:00');
     });
@@ -53,7 +53,7 @@ describe('useGridSelection', () => {
   it('deve resetar seleção no mouseUp', () => {
     const onSelect = jest.fn();
     const { result } = renderHook(() => useGridSelection(onSelect));
-    
+
     act(() => {
       result.current.handleMouseDown('Segunda', '08:00');
     });
