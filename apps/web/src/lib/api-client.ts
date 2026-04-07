@@ -6,16 +6,16 @@ type FetchOptions = RequestInit & {
 
 async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { params, headers, ...rest } = options;
-  
+
   let url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  
+
   if (params) {
     const searchParams = new URLSearchParams(params);
     url += `?${searchParams.toString()}`;
   }
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  
+
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -48,15 +48,18 @@ async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promis
 }
 
 export const api = {
-  get: <T>(endpoint: string, options?: FetchOptions) => 
+  get: <T>(endpoint: string, options?: FetchOptions) =>
     apiFetch<T>(endpoint, { ...options, method: 'GET' }),
-    
-  post: <T>(endpoint: string, body?: any, options?: FetchOptions) => 
+
+  post: <T>(endpoint: string, body?: any, options?: FetchOptions) =>
     apiFetch<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
-    
-  put: <T>(endpoint: string, body?: any, options?: FetchOptions) => 
+
+  put: <T>(endpoint: string, body?: any, options?: FetchOptions) =>
     apiFetch<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
-    
-  delete: <T>(endpoint: string, options?: FetchOptions) => 
+
+  patch: <T>(endpoint: string, body?: any, options?: FetchOptions) =>
+    apiFetch<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
+
+  delete: <T>(endpoint: string, options?: FetchOptions) =>
     apiFetch<T>(endpoint, { ...options, method: 'DELETE' }),
 };

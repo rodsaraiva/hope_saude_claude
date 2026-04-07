@@ -15,6 +15,7 @@ import {
   User,
   Search,
   ShieldCheck,
+  Pill,
 } from 'lucide-react';
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { splitAppointmentsByDate } from '@/lib/appointment-helpers';

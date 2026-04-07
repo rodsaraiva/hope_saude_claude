@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation';
 
 /** URL antiga: redireciona para o perfil público do médico. */
-export default function LegacyDoctorProfileRedirect({
+export default async function LegacyDoctorProfileRedirect({
   params,
 }: {
-  params: { userId: string };
+  params: Promise<{ userId: string }>;
 }) {
-  redirect(`/doctors/${params.userId}`);
+  const { userId } = await params;
+  redirect(`/doctors/${userId}`);
 }

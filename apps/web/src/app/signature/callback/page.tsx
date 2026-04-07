@@ -1,11 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { signMedicalRecord, signPrescription } from '@/lib/doctor-dashboard-api';
 
 export default function LacunaSignatureCallback() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-50">
+          <Loader2 className="h-10 w-10 animate-spin text-sky-600" />
+        </div>
+      }
+    >
+      <SignatureCallbackInner />
+    </Suspense>
+  );
+}
+
+function SignatureCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -18,7 +32,9 @@ export default function LacunaSignatureCallback() {
 
     if (error) {
       setStatus('error');
-      setErrorMsg(error === 'access_denied' ? 'Acesso negado pelo usuário.' : 'Erro na autenticação.');
+      setErrorMsg(
+        error === 'access_denied' ? 'Acesso negado pelo usuário.' : 'Erro na autenticação.',
+      );
       return;
     }
 
@@ -60,9 +76,9 @@ export default function LacunaSignatureCallback() {
         } else {
           await signPrescription(recordId as number, { code });
         }
-        
+
         setStatus('success');
-        
+
         // Limpa cache
         localStorage.removeItem('pending_signature_record_id');
         localStorage.removeItem('pending_signature_content');
@@ -88,7 +104,8 @@ export default function LacunaSignatureCallback() {
             <Loader2 className="mx-auto h-16 w-16 animate-spin text-sky-600" />
             <h1 className="text-2xl font-bold text-slate-900">Processando Assinatura</h1>
             <p className="text-slate-500 font-medium">
-              Estamos comunicando com o Lacuna Software (Provedor) para validar sua assinatura eletrônica. Aguarde um instante...
+              Estamos comunicando com o Lacuna Software (Provedor) para validar sua assinatura
+              eletrônica. Aguarde um instante...
             </p>
           </div>
         )}
@@ -112,7 +129,7 @@ export default function LacunaSignatureCallback() {
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Falha na Assinatura</h1>
             <p className="text-red-600 font-medium">{errorMsg}</p>
-            <button 
+            <button
               onClick={() => router.replace('/agenda')}
               className="mt-6 w-full rounded-xl bg-slate-900 py-3 font-bold text-white transition hover:bg-slate-800"
             >

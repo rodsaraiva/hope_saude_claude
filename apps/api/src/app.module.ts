@@ -11,6 +11,7 @@ import { PaymentModule } from './payment/payment.module';
 import { VideoModule } from './video/video.module';
 import { MedicalRecordModule } from './medical-record/medical-record.module';
 import { PrescriptionModule } from './prescription/prescription.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PrescriptionModule } from './prescription/prescription.module';
     VideoModule,
     MedicalRecordModule,
     PrescriptionModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

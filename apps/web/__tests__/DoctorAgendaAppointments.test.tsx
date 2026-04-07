@@ -80,13 +80,18 @@ describe('DoctorAgenda - Appointments display', () => {
 
     render(<DoctorAgenda />);
 
-    // Inicialmente não deve mostrar Roberto (está na próxima semana)
+    // Aguarda a agenda carregar (sair do loading state)
     await waitFor(() => {
-      expect(screen.queryByText('Roberto Carlos')).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: /Agenda de Disponibilidade/i }),
+      ).toBeInTheDocument();
     });
 
+    // Inicialmente não deve mostrar Roberto (está na próxima semana)
+    expect(screen.queryByText('Roberto Carlos')).not.toBeInTheDocument();
+
     // Clica em "Próxima semana"
-    const nextBtn = screen.getByLabelText('Próxima semana');
+    const nextBtn = screen.getByRole('button', { name: 'Próxima semana' });
     fireEvent.click(nextBtn);
 
     // Agora deve aparecer

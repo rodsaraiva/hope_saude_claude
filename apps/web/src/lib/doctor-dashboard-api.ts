@@ -28,11 +28,16 @@ export type ConsultationModel = {
   price: number;
 };
 
-export async function createConsultationModel(data: Omit<ConsultationModel, 'id'>): Promise<ConsultationModel> {
+export async function createConsultationModel(
+  data: Omit<ConsultationModel, 'id'>,
+): Promise<ConsultationModel> {
   return api.post('/profile/doctor/consultation-models', data);
 }
 
-export async function updateConsultationModel(id: number, data: Omit<ConsultationModel, 'id'>): Promise<ConsultationModel> {
+export async function updateConsultationModel(
+  id: number,
+  data: Omit<ConsultationModel, 'id'>,
+): Promise<ConsultationModel> {
   return api.post(`/profile/doctor/consultation-models/${id}`, data);
 }
 
@@ -68,8 +73,11 @@ export type MedicalRecord = {
   };
 };
 
-export async function fetchMedicalRecords(patientId: number, search?: string): Promise<MedicalRecord[]> {
-  const params = search ? { search } : {};
+export async function fetchMedicalRecords(
+  patientId: number,
+  search?: string,
+): Promise<MedicalRecord[]> {
+  const params: Record<string, string> = search ? { search } : {};
   return api.get(`/medical-records/patient/${patientId}`, { params });
 }
 
@@ -82,7 +90,11 @@ export async function createMedicalRecord(data: {
   return api.post('/medical-records', data);
 }
 
-export async function updateMedicalRecord(id: number, content: string, reason?: string): Promise<MedicalRecord> {
+export async function updateMedicalRecord(
+  id: number,
+  content: string,
+  reason?: string,
+): Promise<MedicalRecord> {
   return api.patch(`/medical-records/${id}`, { content, reason });
 }
 
@@ -125,7 +137,10 @@ export async function createPrescription(data: {
   return api.post('/prescriptions', data);
 }
 
-export async function updatePrescription(id: number, data: { medications: string; observations?: string }): Promise<Prescription> {
+export async function updatePrescription(
+  id: number,
+  data: { medications: string; observations?: string },
+): Promise<Prescription> {
   return api.patch(`/prescriptions/${id}`, data);
 }
 
@@ -133,11 +148,16 @@ export async function signPrescription(id: number, authData?: any): Promise<Pres
   return api.post(`/prescriptions/${id}/sign`, { authData });
 }
 
-export function getLacunaAuthorizeUrl(recordId: number, type: 'medical-record' | 'prescription' = 'medical-record'): string {
+export function getLacunaAuthorizeUrl(
+  recordId: number,
+  type: 'medical-record' | 'prescription' = 'medical-record',
+): string {
   // O Lacuna Rest PKI usa um fluxo OAuth2 genérico que suporta BirdID, VidaaS, SafeID, etc.
-  const endpoint = process.env.NEXT_PUBLIC_LACUNA_AUTHORIZE_URL || 'https://pki.rest/cloud-signature/authorize';
-  const redirectUri = process.env.NEXT_PUBLIC_LACUNA_REDIRECT_URI || `${window.location.origin}/signature/callback`;
+  const endpoint =
+    process.env.NEXT_PUBLIC_LACUNA_AUTHORIZE_URL || 'https://pki.rest/cloud-signature/authorize';
+  const redirectUri =
+    process.env.NEXT_PUBLIC_LACUNA_REDIRECT_URI || `${window.location.origin}/signature/callback`;
   const state = encodeURIComponent(JSON.stringify({ recordId, type }));
-  
+
   return `${endpoint}?response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=signature_session&state=${state}`;
 }
