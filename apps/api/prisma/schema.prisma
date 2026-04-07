@@ -97,9 +97,10 @@ model MedicalRecord {
   appointmentId Int?         @unique
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
 
-  content   String // Armazenará o conteúdo do prontuário (JSON SOAP ou texto)
+  content   String // Armazenará o conteúdo do prontuário (HTML do Tiptap, encriptado via AES-256-GCM em repouso)
   status    String   @default("DRAFT") // DRAFT ou SIGNED
   type      String   @default("EVOLUTION") // EVOLUTION, ANAMNESIS, etc.
+  template  String   @default("FREE") // FREE (texto livre) ou SOAP (Subjetivo/Objetivo/Avaliação/Plano)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -150,6 +151,29 @@ model Prescription {
 
   @@index([patientId, createdAt])
   @@index([doctorId, patientId])
+}
+
+/// Escalas psicométricas aplicadas aos pacientes (PHQ-9, GAD-7, AUDIT, MOCA).
+/// Médico cria → gera access_token → paciente responde via URL pública →
+/// score calculado e severidade definida automaticamente.
+model ClinicalScale {
+  id          Int      @id @default(autoincrement())
+  patientId   Int
+  doctorId    Int
+  type        String   // PHQ9 | GAD7 | AUDIT | MOCA
+  status      String   @default("PENDING") // PENDING | COMPLETED | EXPIRED
+  accessToken String   @unique // UUID para URL pública
+  answers     String?  // JSON array de respostas (índice → score)
+  totalScore  Int?     // score final calculado
+  severity    String?  // mínima | leve | moderada | moderadamente grave | grave
+  notes       String?  // observações do médico ao criar
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+  expiresAt   DateTime // 14 dias por padrão
+
+  @@index([patientId, createdAt])
+  @@index([doctorId, patientId])
+  @@index([accessToken])
 }
 
 /// Pagamento Asaas iniciado antes da consulta existir no banco (checkout único).

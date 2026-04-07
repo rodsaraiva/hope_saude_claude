@@ -25,7 +25,14 @@ export class MedicalRecordController {
   @Post()
   async create(
     @Request() req: AuthenticatedRequest,
-    @Body() body: { patientId: number; appointmentId?: number; content: string; type?: string },
+    @Body()
+    body: {
+      patientId: number;
+      appointmentId?: number;
+      content: string;
+      type?: string;
+      template?: 'FREE' | 'SOAP';
+    },
   ) {
     if (req.user.role !== 'DOCTOR') {
       throw new ForbiddenException('Apenas médicos podem criar prontuários');

@@ -102,6 +102,7 @@ describe('MedicalRecordService', () => {
         content: `ENC(${content})`, // LGPD: encriptado em repouso
         status: 'DRAFT',
         type: 'EVOLUTION',
+        template: 'FREE',
       },
     });
     expect(result.id).toBe(1);
@@ -281,6 +282,49 @@ describe('MedicalRecordService', () => {
         signatureDate: expect.any(Date),
         signerUserId: doctorId,
       }),
+    });
+  });
+
+  describe('template SOAP', () => {
+    it('default é FREE quando template não é informado', async () => {
+      mockPrisma.appointment.findUnique.mockResolvedValue({
+        id: 10,
+        doctorId: 1,
+        patientId: 2,
+      });
+      mockPrisma.medicalRecord.create.mockResolvedValue({ id: 1 });
+
+      await service.create({
+        doctorId: 1,
+        patientId: 2,
+        appointmentId: 10,
+        content: 'texto',
+      });
+
+      expect(mockPrisma.medicalRecord.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ template: 'FREE' }),
+      });
+    });
+
+    it('persiste template SOAP quando informado', async () => {
+      mockPrisma.appointment.findUnique.mockResolvedValue({
+        id: 10,
+        doctorId: 1,
+        patientId: 2,
+      });
+      mockPrisma.medicalRecord.create.mockResolvedValue({ id: 1 });
+
+      await service.create({
+        doctorId: 1,
+        patientId: 2,
+        appointmentId: 10,
+        content: '<h2>Subjetivo</h2>...',
+        template: 'SOAP',
+      });
+
+      expect(mockPrisma.medicalRecord.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ template: 'SOAP' }),
+      });
     });
   });
 

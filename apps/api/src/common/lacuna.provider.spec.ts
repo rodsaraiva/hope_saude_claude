@@ -1,9 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { ServiceUnavailableException } from '@nestjs/common';
 import axios from 'axios';
 import { LacunaProvider } from './lacuna.provider';
 
-jest.mock('axios');
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: {
+    post: jest.fn(),
+    isAxiosError: jest.fn(),
+  },
+}));
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('LacunaProvider', () => {
@@ -27,6 +34,7 @@ describe('LacunaProvider', () => {
     }).compile();
 
     provider = module.get<LacunaProvider>(LacunaProvider);
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -51,11 +59,12 @@ describe('LacunaProvider', () => {
       'https://mock.pki.rest/api/signatures/complete',
       expect.objectContaining({
         code,
-        hash: expect.any(String), // Hash gerado internamente
+        hash: expect.any(String),
         algorithm: 'SHA256',
       }),
       expect.objectContaining({
-        headers: { Authorization: 'Bearer mock-api-key' },
+        headers: expect.objectContaining({ Authorization: 'Bearer mock-api-key' }),
+        timeout: 30000,
       }),
     );
 
@@ -65,9 +74,70 @@ describe('LacunaProvider', () => {
     expect(result.signatureDate).toBeInstanceOf(Date);
   });
 
-  it('deve lançar erro se a API do Lacuna falhar', async () => {
-    mockedAxios.post.mockRejectedValueOnce(new Error('Lacuna API Error'));
+  it('deve lançar erro se a API do Lacuna falhar (não-HTTP)', async () => {
+    mockedAxios.post.mockRejectedValueOnce(new Error('timeout of 30000ms exceeded'));
 
-    await expect(provider.sign('conteudo', { code: '123' })).rejects.toThrow('Lacuna API Error');
+    await expect(provider.sign('conteudo', { code: '123' })).rejects.toThrow(/timeout/);
+  });
+
+  it('traduz erro HTTP 401 em ServiceUnavailableException com mensagem do Lacuna', async () => {
+    const axiosErr = {
+      isAxiosError: true,
+      message: 'Request failed with status code 401',
+      response: {
+        status: 401,
+        data: { message: 'Authorization code expired' },
+      },
+    };
+    mockedAxios.post.mockRejectedValueOnce(axiosErr);
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockReturnValueOnce(true);
+
+    await expect(provider.sign('content', { code: 'expired' })).rejects.toThrow(
+      ServiceUnavailableException,
+    );
+  });
+
+  it('lança erro quando authData.code ausente', async () => {
+    await expect(provider.sign('content', {} as unknown as { code: string })).rejects.toThrow(
+      /Código de autorização do Lacuna ausente/,
+    );
+  });
+
+  it('lança erro quando Lacuna retorna 200 mas sem campo signature', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { signer: { name: 'X' } }, // sem signature
+    });
+
+    await expect(provider.sign('content', { code: 'abc' })).rejects.toThrow(/sem campo signature/);
+  });
+
+  describe('inicialização', () => {
+    it('lança erro quando LACUNA_API_KEY não está configurada', async () => {
+      await expect(
+        Test.createTestingModule({
+          providers: [
+            LacunaProvider,
+            {
+              provide: ConfigService,
+              useValue: { get: jest.fn().mockReturnValue(undefined) },
+            },
+          ],
+        }).compile(),
+      ).rejects.toThrow(/LACUNA_API_KEY não está configurada/);
+    });
+
+    it('lança erro quando LACUNA_API_KEY é string vazia', async () => {
+      await expect(
+        Test.createTestingModule({
+          providers: [
+            LacunaProvider,
+            {
+              provide: ConfigService,
+              useValue: { get: jest.fn().mockReturnValue('   ') },
+            },
+          ],
+        }).compile(),
+      ).rejects.toThrow(/LACUNA_API_KEY não está configurada/);
+    });
   });
 });

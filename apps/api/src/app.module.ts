@@ -13,6 +13,7 @@ import { VideoModule } from './video/video.module';
 import { MedicalRecordModule } from './medical-record/medical-record.module';
 import { PrescriptionModule } from './prescription/prescription.module';
 import { HealthModule } from './health/health.module';
+import { ClinicalScaleModule } from './clinical-scale/clinical-scale.module';
 import { buildPinoConfig } from './common/logger/logger.config';
 
 @Module({
@@ -43,6 +44,7 @@ import { buildPinoConfig } from './common/logger/logger.config';
     MedicalRecordModule,
     PrescriptionModule,
     HealthModule,
+    ClinicalScaleModule,
   ],
   controllers: [AppController],
   providers: [

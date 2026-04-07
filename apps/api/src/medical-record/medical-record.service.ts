@@ -42,6 +42,7 @@ export class MedicalRecordService {
     appointmentId?: number;
     content: string;
     type?: string;
+    template?: 'FREE' | 'SOAP';
   }) {
     if (data.appointmentId) {
       const appointment = await this.prisma.appointment.findUnique({
@@ -81,6 +82,7 @@ export class MedicalRecordService {
         content: encryptedContent as string,
         status: 'DRAFT',
         type: data.type || 'EVOLUTION',
+        template: data.template ?? 'FREE',
       },
     });
 
