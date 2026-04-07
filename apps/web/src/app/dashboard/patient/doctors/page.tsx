@@ -7,38 +7,32 @@ import { Search, Stethoscope, Calendar } from 'lucide-react';
 import DoctorBookingModal from '@/components/DoctorBookingModal';
 import PatientSetupModal from '@/components/PatientSetupModal';
 import PaymentModal from '@/components/PaymentModal';
+import { useDoctorsList } from '@/lib/query/use-doctors';
+import type { PublicDoctor } from '@/lib/doctors-api';
 
-type DoctorRow = {
-  id: number;
-  userId: number;
-  specialty: string;
-  availability: string | null;
-  user?: { name: string; email?: string };
-  consultationModels?: Array<{
-    id: number;
-    name: string;
-    durationMinutes: number;
-    price: number;
-  }>;
-};
+type DoctorRow = PublicDoctor;
 
 export default function PatientDoctorsListPage() {
   const router = useRouter();
-  const [doctors, setDoctors] = useState<DoctorRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
   const [query, setQuery] = useState('');
   const [specialtyFilter, setSpecialtyFilter] = useState('');
   const [selected, setSelected] = useState<DoctorRow | null>(null);
   const [bookMsg, setBookMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentContext, setPaymentContext] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
-    null,
-  );
+  const [paymentContext, setPaymentContext] = useState<{
+    doctorUserId: number;
+    dateIso: string;
+    consultationModelId?: number;
+  } | null>(null);
   const [setupModalOpen, setSetupModalOpen] = useState(false);
-  const [pendingBooking, setPendingBooking] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
-    null,
-  );
+  const [pendingBooking, setPendingBooking] = useState<{
+    doctorUserId: number;
+    dateIso: string;
+    consultationModelId?: number;
+  } | null>(null);
 
+  // Guarda de auth — só PATIENT
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -51,22 +45,16 @@ export default function PatientDoctorsListPage() {
         router.replace('/');
         return;
       }
+      setAuthorized(true);
     } catch {
       router.replace('/login');
-      return;
     }
-
-    const load = async () => {
-      const t = localStorage.getItem('token');
-      const res = await fetch('http://localhost:3000/profile/doctors', {
-        headers: { Authorization: `Bearer ${t}` },
-      });
-      const data = await res.json();
-      setDoctors(Array.isArray(data) ? data : []);
-      setLoading(false);
-    };
-    load();
   }, [router]);
+
+  const { data: doctors = [], isLoading } = useDoctorsList(
+    authorized ? specialtyFilter || undefined : undefined,
+  );
+  const loading = !authorized || isLoading;
 
   const specialties = useMemo(() => {
     const s = new Set<string>();
@@ -87,7 +75,11 @@ export default function PatientDoctorsListPage() {
     });
   }, [doctors, query, specialtyFilter]);
 
-  const handleBook = async (doctorUserId: number, dateIso: string, consultationModelId?: number) => {
+  const handleBook = async (
+    doctorUserId: number,
+    dateIso: string,
+    consultationModelId?: number,
+  ) => {
     setBookMsg(null);
     setSelected(null);
     setPaymentContext({ doctorUserId, dateIso, consultationModelId });
@@ -124,10 +116,7 @@ export default function PatientDoctorsListPage() {
             deseja marcar sua consulta.
           </p>
         </div>
-        <Link
-          href="/profile"
-          className="text-sm font-semibold text-sky-600 hover:text-sky-700"
-        >
+        <Link href="/profile" className="text-sm font-semibold text-sky-600 hover:text-sky-700">
           ← Voltar ao perfil
         </Link>
       </div>

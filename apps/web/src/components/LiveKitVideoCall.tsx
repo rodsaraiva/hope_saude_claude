@@ -9,7 +9,16 @@ import {
   useRemoteParticipants,
 } from '@livekit/components-react';
 import { ConnectionState } from 'livekit-client';
-import { PhoneOff, Video, FileText, ChevronLeft, ChevronRight, Minimize2, Maximize2, Pill } from 'lucide-react';
+import {
+  PhoneOff,
+  Video,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Minimize2,
+  Maximize2,
+  Pill,
+} from 'lucide-react';
 import { useVideoCall } from '@/hooks/useVideoCall';
 import { MedicalRecordModal } from '@/components/MedicalRecordModal';
 import { PrescriptionModal } from '@/components/PrescriptionModal';
@@ -100,7 +109,11 @@ export default function LiveKitVideoCall({ appointmentId }: Props) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
-                  if (isMedicalRecordOpen && activeSideTab === 'record' && !isMedicalRecordMinimized) {
+                  if (
+                    isMedicalRecordOpen &&
+                    activeSideTab === 'record' &&
+                    !isMedicalRecordMinimized
+                  ) {
                     setIsMedicalRecordOpen(false);
                   } else {
                     setIsMedicalRecordOpen(true);
@@ -110,7 +123,7 @@ export default function LiveKitVideoCall({ appointmentId }: Props) {
                 }}
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
                   isMedicalRecordOpen && !isMedicalRecordMinimized && activeSideTab === 'record'
-                    ? 'bg-sky-600 text-white shadow-lg' 
+                    ? 'bg-sky-600 text-white shadow-lg'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
@@ -120,7 +133,11 @@ export default function LiveKitVideoCall({ appointmentId }: Props) {
 
               <button
                 onClick={() => {
-                  if (isMedicalRecordOpen && activeSideTab === 'prescription' && !isMedicalRecordMinimized) {
+                  if (
+                    isMedicalRecordOpen &&
+                    activeSideTab === 'prescription' &&
+                    !isMedicalRecordMinimized
+                  ) {
                     setIsMedicalRecordOpen(false);
                   } else {
                     setIsMedicalRecordOpen(true);
@@ -129,8 +146,10 @@ export default function LiveKitVideoCall({ appointmentId }: Props) {
                   }
                 }}
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${
-                  isMedicalRecordOpen && !isMedicalRecordMinimized && activeSideTab === 'prescription'
-                    ? 'bg-emerald-600 text-white shadow-lg' 
+                  isMedicalRecordOpen &&
+                  !isMedicalRecordMinimized &&
+                  activeSideTab === 'prescription'
+                    ? 'bg-emerald-600 text-white shadow-lg'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
@@ -142,7 +161,9 @@ export default function LiveKitVideoCall({ appointmentId }: Props) {
         </header>
 
         <main className="relative flex min-h-0 flex-1 overflow-hidden">
-          <div className={`flex min-h-0 flex-1 flex-col transition-all duration-300 ${isMedicalRecordOpen && !isMedicalRecordMinimized ? 'mr-[450px]' : ''}`}>
+          <div
+            className={`flex min-h-0 flex-1 flex-col transition-all duration-300 ${isMedicalRecordOpen && !isMedicalRecordMinimized ? 'mr-[450px]' : ''}`}
+          >
             <div className="min-h-0 flex-1 [&_.lk-control-bar]:hidden p-4">
               <VideoConference className="h-full" />
             </div>
@@ -158,19 +179,37 @@ export default function LiveKitVideoCall({ appointmentId }: Props) {
           </div>
 
           {isDoctor && appointment && (
-            <div 
+            <div
               className={`fixed top-[73px] bottom-0 right-0 w-[450px] bg-white text-slate-900 shadow-2xl transition-all duration-300 transform ${
-                isMedicalRecordOpen 
-                  ? isMedicalRecordMinimized 
-                    ? 'translate-y-[calc(100%-48px)] translate-x-[-20px] scale-90 opacity-90' 
+                isMedicalRecordOpen
+                  ? isMedicalRecordMinimized
+                    ? 'translate-y-[calc(100%-48px)] translate-x-[-20px] scale-90 opacity-90'
                     : 'translate-x-0'
                   : 'translate-x-full'
               } z-40 border-l border-slate-200 flex flex-col`}
             >
               {/* Barra de minimizar */}
-              <div className="flex items-center justify-between bg-slate-900 px-4 py-2 text-white cursor-pointer hover:bg-slate-800 transition-colors" onClick={() => setIsMedicalRecordMinimized(!isMedicalRecordMinimized)}>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={
+                  isMedicalRecordMinimized ? 'Expandir prontuário' : 'Minimizar prontuário'
+                }
+                onClick={() => setIsMedicalRecordMinimized(!isMedicalRecordMinimized)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setIsMedicalRecordMinimized(!isMedicalRecordMinimized);
+                  }
+                }}
+                className="flex items-center justify-between bg-slate-900 px-4 py-2 text-white cursor-pointer hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-inset"
+              >
                 <div className="flex items-center gap-2">
-                  {activeSideTab === 'record' ? <FileText className="h-4 w-4 text-sky-400" /> : <Pill className="h-4 w-4 text-emerald-400" />}
+                  {activeSideTab === 'record' ? (
+                    <FileText className="h-4 w-4 text-sky-400" />
+                  ) : (
+                    <Pill className="h-4 w-4 text-emerald-400" />
+                  )}
                   <span className="text-xs font-bold uppercase tracking-wider">
                     {activeSideTab === 'record' ? 'Prontuário em Tempo Real' : 'Emissão de Receita'}
                   </span>
@@ -181,13 +220,19 @@ export default function LiveKitVideoCall({ appointmentId }: Props) {
                   )}
                 </div>
                 <button className="p-1 hover:bg-white/10 rounded transition-colors">
-                  {isMedicalRecordMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                  {isMedicalRecordMinimized ? (
+                    <Maximize2 className="h-4 w-4" />
+                  ) : (
+                    <Minimize2 className="h-4 w-4" />
+                  )}
                 </button>
               </div>
 
-              <div className={`flex-1 overflow-hidden transition-opacity duration-200 ${isMedicalRecordMinimized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <div
+                className={`flex-1 overflow-hidden transition-opacity duration-200 ${isMedicalRecordMinimized ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+              >
                 {activeSideTab === 'record' ? (
-                  <MedicalRecordModal 
+                  <MedicalRecordModal
                     isOpen={true}
                     onClose={() => setIsMedicalRecordOpen(false)}
                     patientId={appointment.patientId}

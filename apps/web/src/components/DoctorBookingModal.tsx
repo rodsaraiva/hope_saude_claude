@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Loader2, Calendar, Clock, X, ChevronRight, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import { fetchDoctorAvailableSlots, type AvailableSlotsResponse } from '@/lib/patient-booking-api';
+import { ModalBackdrop } from '@/components/ui/ModalBackdrop';
 
 type DoctorRow = {
   id: number;
   userId: number;
   specialty: string;
-  availability: string | null;
-  user?: { name: string };
+  availability?: string | null;
+  user?: { name: string; email?: string };
   consultationModels?: Array<{
     id: number;
     name: string;
@@ -104,28 +105,9 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
   const availableDates = useMemo(() => Object.keys(groupedSlots).sort(), [groupedSlots]);
   const slotsForSelectedDate = selectedDateStr ? groupedSlots[selectedDateStr] || [] : [];
 
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
   return (
-    // ESC já fecha via useEffect; click no backdrop é apenas convenience visual
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-    >
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-      <div
-        className="flex flex-col w-full max-w-lg max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalBackdrop onClose={onClose} label="Agendar consulta">
+      <div className="flex flex-col w-full max-w-lg max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-xl animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
@@ -327,6 +309,6 @@ export default function DoctorBookingModal({ doctor, onClose, onBook }: Props) {
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </ModalBackdrop>
   );
 }

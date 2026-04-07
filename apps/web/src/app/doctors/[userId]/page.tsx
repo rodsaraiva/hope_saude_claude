@@ -8,43 +8,22 @@ import DoctorBookingModal from '@/components/DoctorBookingModal';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import PatientSetupModal from '@/components/PatientSetupModal';
 import PaymentModal from '@/components/PaymentModal';
-
-type DoctorRow = {
-  id: number;
-  userId: number;
-  specialty: string;
-  crm: string;
-  availability: string | null;
-  bio?: string | null;
-  user?: { name: string; email?: string };
-  consultationModels?: Array<{
-    id: number;
-    name: string;
-    durationMinutes: number;
-    price: number;
-  }>;
-};
+import { useDoctorDetail } from '@/lib/query/use-doctors';
 
 export default function PublicDoctorProfilePage() {
   const params = useParams();
   const router = useRouter();
   const userIdParam = typeof params?.userId === 'string' ? params.userId : '';
-  const [doctor, setDoctor] = useState<DoctorRow | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const doctorUserId = useMemo(() => {
+    const uid = parseInt(userIdParam, 10);
+    return Number.isNaN(uid) ? null : uid;
+  }, [userIdParam]);
+
+  const [authorized, setAuthorized] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [bookMsg, setBookMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const slots = useMemo(() => {
-    if (!doctor?.availability) return [];
-    try {
-      const parsed = JSON.parse(doctor.availability) as Array<{ day: string; start: string; end: string }>;
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }, [doctor?.availability]);
-
+  // Guarda de auth client-side (só PATIENT pode acessar esta página)
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -57,44 +36,53 @@ export default function PublicDoctorProfilePage() {
         router.replace('/');
         return;
       }
+      setAuthorized(true);
     } catch {
       router.replace('/login');
-      return;
     }
+  }, [router]);
 
-    const load = async () => {
-      const uid = parseInt(userIdParam, 10);
-      if (Number.isNaN(uid)) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-      const t = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:3000/profile/doctors/${uid}`, {
-        headers: { Authorization: `Bearer ${t}` },
-      });
-      if (res.status === 404 || !res.ok) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-      const data = (await res.json()) as DoctorRow;
-      setDoctor(data);
-      setLoading(false);
-    };
-    load();
-  }, [router, userIdParam]);
+  const {
+    data: doctor,
+    isLoading: doctorLoading,
+    isError: doctorError,
+  } = useDoctorDetail(authorized ? doctorUserId : null);
+
+  const loading = !authorized || doctorLoading;
+  const notFound = (authorized && doctorUserId === null) || doctorError;
+
+  const slots = useMemo(() => {
+    if (!doctor?.availability) return [];
+    try {
+      const parsed = JSON.parse(doctor.availability) as Array<{
+        day: string;
+        start: string;
+        end: string;
+      }>;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [doctor?.availability]);
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [paymentContext, setPaymentContext] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
-    null,
-  );
+  const [paymentContext, setPaymentContext] = useState<{
+    doctorUserId: number;
+    dateIso: string;
+    consultationModelId?: number;
+  } | null>(null);
   const [setupModalOpen, setSetupModalOpen] = useState(false);
-  const [pendingBooking, setPendingBooking] = useState<{ doctorUserId: number; dateIso: string; consultationModelId?: number } | null>(
-    null,
-  );
+  const [pendingBooking, setPendingBooking] = useState<{
+    doctorUserId: number;
+    dateIso: string;
+    consultationModelId?: number;
+  } | null>(null);
 
-  const handleBook = async (doctorUserId: number, dateIso: string, consultationModelId?: number) => {
+  const handleBook = async (
+    doctorUserId: number,
+    dateIso: string,
+    consultationModelId?: number,
+  ) => {
     setBookMsg(null);
     setModalOpen(false);
     setPaymentContext({ doctorUserId, dateIso, consultationModelId });
@@ -153,18 +141,18 @@ export default function PublicDoctorProfilePage() {
           </Link>
         </div>
 
-      {bookMsg && (
-        <div
-          className={
-            bookMsg.type === 'success'
-              ? 'mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900'
-              : 'mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900'
-          }
-          role="status"
-        >
-          {bookMsg.text}
-        </div>
-      )}
+        {bookMsg && (
+          <div
+            className={
+              bookMsg.type === 'success'
+                ? 'mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900'
+                : 'mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900'
+            }
+            role="status"
+          >
+            {bookMsg.text}
+          </div>
+        )}
 
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-100 bg-white p-8 shadow-sm lg:w-72">
@@ -189,7 +177,10 @@ export default function PublicDoctorProfilePage() {
               className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
               aria-labelledby="cadastro-heading"
             >
-              <h2 id="cadastro-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <h2
+                id="cadastro-heading"
+                className="flex items-center gap-2 text-lg font-semibold text-slate-900"
+              >
                 <User className="h-5 w-5 text-sky-600" aria-hidden />
                 Dados de cadastro
               </h2>
@@ -197,21 +188,27 @@ export default function PublicDoctorProfilePage() {
                 <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                   <Mail className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">E-mail</dt>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      E-mail
+                    </dt>
                     <dd className="text-slate-900">{doctor.user?.email || '—'}</dd>
                   </div>
                 </div>
                 <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                   <Stethoscope className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Especialidade</dt>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Especialidade
+                    </dt>
                     <dd className="text-slate-900">{doctor.specialty || '—'}</dd>
                   </div>
                 </div>
                 <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                   <Hash className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">CRM</dt>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      CRM
+                    </dt>
                     <dd className="text-slate-900">{doctor.crm || '—'}</dd>
                   </div>
                 </div>
@@ -230,7 +227,10 @@ export default function PublicDoctorProfilePage() {
               className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
               aria-labelledby="disponibilidade-public-heading"
             >
-              <h2 id="disponibilidade-public-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <h2
+                id="disponibilidade-public-heading"
+                className="flex items-center gap-2 text-lg font-semibold text-slate-900"
+              >
                 <Calendar className="h-5 w-5 text-sky-600" aria-hidden />
                 Disponibilidade
               </h2>
@@ -259,7 +259,10 @@ export default function PublicDoctorProfilePage() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm" aria-labelledby="agenda-heading">
+            <section
+              className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+              aria-labelledby="agenda-heading"
+            >
               <h2 id="agenda-heading" className="text-lg font-semibold text-slate-900">
                 Agendar consulta
               </h2>

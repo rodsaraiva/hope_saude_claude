@@ -6,23 +6,17 @@ import { useRouter } from 'next/navigation';
 import { Calendar, Clock, FileText, History, ShieldCheck, Pill } from 'lucide-react';
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { RegistrationDetails } from '@/components/profile/RegistrationDetails';
+import { PrescriptionsList } from '@/components/profile/PrescriptionsList';
 import { splitAppointmentsByDate } from '@/lib/appointment-helpers';
-import {
-  fetchMedicalRecords,
-  fetchPrescriptions,
-  type MedicalRecord,
-  type Prescription,
-  type Medication,
-} from '@/lib/doctor-dashboard-api';
+import { type MedicalRecord, type Prescription } from '@/lib/doctor-dashboard-api';
+import { useAuthMe } from '@/lib/query/use-auth-me';
+import { useProfileMe } from '@/lib/query/use-profile-me';
+import { useAppointmentsMe } from '@/lib/query/use-appointments-me';
+import { useMedicalRecords } from '@/lib/query/use-medical-records';
+import { usePrescriptions } from '@/lib/query/use-prescriptions';
+import { useDoctorsList } from '@/lib/query/use-doctors';
 import { format, parseISO } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
-
-type AccountUser = {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-};
 
 type ProfilePayload = {
   id: number;
@@ -39,98 +33,63 @@ type ProfilePayload = {
 export default function UserProfilePage() {
   const router = useRouter();
   const [userId, setUserId] = useState<number | null>(null);
-  const [account, setAccount] = useState<AccountUser | null>(null);
-  const [profileExtended, setProfileExtended] = useState<ProfilePayload | null>(null);
-  const [appointments, setAppointments] = useState<
-    Array<{ id: number; patientId: number; doctorId: number; date: string; status: string }>
-  >([]);
-  const [doctorNames, setDoctorNames] = useState<Record<number, string>>({});
-  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tokenReady, setTokenReady] = useState(false);
 
+  // 1. Extrai userId do JWT local (não é uma chamada ao servidor)
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
       router.replace('/login');
       return;
     }
-    let uid: number;
-    let r: string;
     try {
       const p = JSON.parse(atob(token.split('.')[1])) as { sub?: number; role?: string };
-      uid = p.sub ?? 0;
-      r = p.role ?? '';
-      if (!uid || !r) throw new Error('invalid');
+      const uid = p.sub ?? 0;
+      if (!uid || !p.role) throw new Error('invalid');
+      setUserId(uid);
+      setTokenReady(true);
     } catch {
       router.replace('/login');
-      return;
     }
-    setUserId(uid);
-
-    const load = async () => {
-      const userRes = await fetch('http://localhost:3000/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!userRes.ok) {
-        setLoading(false);
-        return;
-      }
-      const me = (await userRes.json()) as AccountUser;
-      setAccount(me);
-
-      const profRes = await fetch('http://localhost:3000/profile/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (profRes.ok) {
-        setProfileExtended((await profRes.json()) as ProfilePayload);
-      } else {
-        setProfileExtended(null);
-      }
-
-      const apptRes = await fetch('http://localhost:3000/appointments/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const raw = apptRes.ok ? await apptRes.json() : [];
-      setAppointments(Array.isArray(raw) ? raw : []);
-
-      if (me.role === 'PATIENT') {
-        const docRes = await fetch('http://localhost:3000/profile/doctors', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const docs = docRes.ok ? await docRes.json() : [];
-        const map: Record<number, string> = {};
-        if (Array.isArray(docs)) {
-          for (const d of docs as Array<{ userId: number; user?: { name: string } }>) {
-            map[d.userId] = d.user?.name ?? 'Médico';
-          }
-        }
-        setDoctorNames(map);
-
-        // Buscar prontuários e receitas se for paciente
-        try {
-          const [records, presc] = await Promise.all([
-            fetchMedicalRecords(me.id),
-            fetchPrescriptions(me.id),
-          ]);
-          setMedicalRecords(records);
-          setPrescriptions(presc);
-        } catch (err) {
-          console.error('Erro ao carregar dados médicos:', err);
-        }
-      }
-
-      setLoading(false);
-    };
-    load();
   }, [router]);
 
-  // Recarrega prontuários quando a conta muda (search desabilitado por LGPD)
-  useEffect(() => {
-    if (account?.role === 'PATIENT' && account?.id) {
-      void fetchMedicalRecords(account.id).then(setMedicalRecords);
+  // 2. Queries reativas (só disparam após o token ser validado)
+  const { data: account, isLoading: accountLoading } = useAuthMe({ enabled: tokenReady });
+  const { data: profileResult, isLoading: profileLoading } = useProfileMe();
+  const { data: appointmentsRaw } = useAppointmentsMe({ enabled: tokenReady });
+  const isPatient = account?.role === 'PATIENT';
+  const { data: medicalRecords = [] } = useMedicalRecords(isPatient ? (account?.id ?? null) : null);
+  const { data: prescriptions = [] } = usePrescriptions(isPatient ? (account?.id ?? null) : null);
+  const { data: doctors = [] } = useDoctorsList();
+
+  // Normaliza o shape do profile/me (o hook retorna {profile}|{notFound:true})
+  const profileExtended: ProfilePayload | null = useMemo(() => {
+    if (!profileResult) return null;
+    if ('notFound' in profileResult) return null;
+    return profileResult.profile as ProfilePayload;
+  }, [profileResult]);
+
+  const appointments = useMemo(
+    () =>
+      (Array.isArray(appointmentsRaw) ? appointmentsRaw : []) as Array<{
+        id: number;
+        patientId: number;
+        doctorId: number;
+        date: string;
+        status: string;
+      }>,
+    [appointmentsRaw],
+  );
+
+  const doctorNames = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const d of doctors as Array<{ userId: number; user?: { name: string } }>) {
+      map[d.userId] = d.user?.name ?? 'Médico';
     }
-  }, [account]);
+    return map;
+  }, [doctors]);
+
+  const loading = accountLoading || profileLoading;
 
   const { upcoming, history } = useMemo(
     () => splitAppointmentsByDate(appointments),
@@ -325,92 +284,11 @@ export default function UserProfilePage() {
             )}
 
             {account.role === 'PATIENT' && (
-              <section
-                className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
-                aria-labelledby="receitas-heading"
-              >
-                <div className="flex items-center justify-between gap-4 mb-6">
-                  <h2
-                    id="receitas-heading"
-                    className="flex items-center gap-2 text-lg font-semibold text-slate-900"
-                  >
-                    <Pill className="h-5 w-5 text-emerald-600" aria-hidden />
-                    Minhas Receitas
-                  </h2>
-                </div>
-
-                <div className="space-y-4">
-                  {prescriptions.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
-                      <p className="text-sm text-slate-500">Nenhuma receita encontrada.</p>
-                    </div>
-                  ) : (
-                    prescriptions.map((presc) => {
-                      const meds = JSON.parse(presc.medications) as Medication[];
-                      return (
-                        <div
-                          key={presc.id}
-                          className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-3.5 w-3.5 text-slate-400" />
-                              <span className="text-xs font-bold text-slate-600">
-                                {format(parseISO(presc.createdAt), "dd 'de' MMMM 'de' yyyy", {
-                                  locale: ptBR,
-                                })}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                                Dr. {doctorNames[presc.doctorId] ?? 'Médico'}
-                              </span>
-                              {presc.status === 'SIGNED' && (
-                                <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                                  <ShieldCheck className="h-2.5 w-2.5" />
-                                  ASSINADA DIGITALMENTE
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-3">
-                            {meds.map((m, idx) => (
-                              <div
-                                key={idx}
-                                className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm"
-                              >
-                                <p className="text-sm font-bold text-slate-900">
-                                  {m.name} - {m.dosage}
-                                </p>
-                                <p className="text-xs text-slate-600 mt-1">{m.frequency}</p>
-                                {m.instructions && (
-                                  <p className="text-[10px] text-slate-500 italic mt-1">
-                                    Obs: {m.instructions}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                          {presc.status === 'SIGNED' && presc.signedHash && (
-                            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[8px] font-mono text-slate-400">
-                              <span>Hash de Verificação: {presc.signedHash}</span>
-                              <span>
-                                Data: {format(parseISO(presc.signatureDate!), 'dd/MM/yyyy HH:mm')}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                <button
-                  className="w-full mt-4 py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:border-emerald-200 hover:text-emerald-500 transition-colors"
-                  onClick={() => window.print()}
-                >
-                  IMPRIMIR RECEITAS
-                </button>
-              </section>
+              <PrescriptionsList
+                prescriptions={prescriptions}
+                doctorNames={doctorNames}
+                onPrint={() => window.print()}
+              />
             )}
 
             {account.role === 'DOCTOR' && (
