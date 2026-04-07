@@ -3,10 +3,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar, Clock, FileText, Hash, History, Mail, Phone, Stethoscope, User, Search, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import ProfileAvatar from '@/components/ProfileAvatar';
+import {
+  Calendar,
+  Clock,
+  FileText,
+  Hash,
+  History,
+  Mail,
+  Phone,
+  Stethoscope,
+  User,
+  Search,
+  ShieldCheck,
+} from 'lucide-react';
+import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { splitAppointmentsByDate } from '@/lib/appointment-helpers';
-import { fetchMedicalRecords, fetchPrescriptions, type MedicalRecord, type Prescription, type Medication } from '@/lib/doctor-dashboard-api';
+import {
+  fetchMedicalRecords,
+  fetchPrescriptions,
+  type MedicalRecord,
+  type Prescription,
+  type Medication,
+} from '@/lib/doctor-dashboard-api';
 import { format, parseISO } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 
@@ -105,7 +123,7 @@ export default function UserProfilePage() {
         try {
           const [records, presc] = await Promise.all([
             fetchMedicalRecords(me.id),
-            fetchPrescriptions(me.id)
+            fetchPrescriptions(me.id),
           ]);
           setMedicalRecords(records);
           setPrescriptions(presc);
@@ -131,8 +149,7 @@ export default function UserProfilePage() {
     [appointments],
   );
 
-  const displayName =
-    (profileExtended?.user?.name || account?.name || '').trim() || 'Usuário';
+  const displayName = (profileExtended?.user?.name || account?.name || '').trim() || 'Usuário';
   const email = profileExtended?.user?.email ?? account?.email ?? '—';
 
   const availabilitySlots = useMemo(() => {
@@ -161,14 +178,18 @@ export default function UserProfilePage() {
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-lg font-medium text-slate-800">Sessão inválida ou API indisponível</p>
         <p className="mt-2 text-slate-600">Faça login novamente.</p>
-        <Link href="/login" className="mt-6 inline-block font-semibold text-sky-600 hover:text-sky-700">
+        <Link
+          href="/login"
+          className="mt-6 inline-block font-semibold text-sky-600 hover:text-sky-700"
+        >
           Ir para o login
         </Link>
       </div>
     );
   }
 
-  const dashboardHref = account.role === 'DOCTOR' ? '/dashboard/doctor' : '/dashboard/patient/doctors';
+  const dashboardHref =
+    account.role === 'DOCTOR' ? '/dashboard/doctor' : '/dashboard/patient/doctors';
   const roleLabel = account.role === 'DOCTOR' ? 'Médico' : 'Paciente';
   const missingExtendedProfile = profileExtended === null;
 
@@ -225,26 +246,17 @@ export default function UserProfilePage() {
         )}
 
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-100 bg-white p-8 shadow-sm lg:w-72">
-            <ProfileAvatar userId={userId} displayName={displayName} size="lg" />
-            <div className="text-center">
-              <p className="text-xl font-semibold text-slate-900">{displayName}</p>
-              <p className="mt-1 inline-flex rounded-full bg-sky-50 px-3 py-0.5 text-xs font-medium text-sky-800">
-                {roleLabel}
-              </p>
-            </div>
-            <p className="text-center text-xs text-slate-500">
-              A foto é salva neste navegador. Para sincronizar em outro dispositivo, enviaremos uma
-              atualização futura.
-            </p>
-          </div>
+          <ProfileSidebar userId={userId} displayName={displayName} roleLabel={roleLabel} />
 
           <div className="min-w-0 flex-1 space-y-8">
             <section
               className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
               aria-labelledby="cadastro-heading"
             >
-              <h2 id="cadastro-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <h2
+                id="cadastro-heading"
+                className="flex items-center gap-2 text-lg font-semibold text-slate-900"
+              >
                 <User className="h-5 w-5 text-sky-600" aria-hidden />
                 Dados de cadastro
               </h2>
@@ -252,14 +264,18 @@ export default function UserProfilePage() {
                 <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                   <Mail className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">E-mail</dt>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      E-mail
+                    </dt>
                     <dd className="text-slate-900">{email}</dd>
                   </div>
                 </div>
                 <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                   <FileText className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                   <div>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Nome completo</dt>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Nome completo
+                    </dt>
                     <dd className="text-slate-900">{account.name}</dd>
                   </div>
                 </div>
@@ -268,7 +284,9 @@ export default function UserProfilePage() {
                     <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                       <Phone className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                       <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Telefone</dt>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                          Telefone
+                        </dt>
                         <dd className="text-slate-900">
                           {profileExtended?.phone?.trim()
                             ? profileExtended.phone
@@ -297,14 +315,18 @@ export default function UserProfilePage() {
                     <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                       <Stethoscope className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                       <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Especialidade</dt>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                          Especialidade
+                        </dt>
                         <dd className="text-slate-900">{profileExtended?.specialty ?? '—'}</dd>
                       </div>
                     </div>
                     <div className="flex gap-3 rounded-xl bg-slate-50/80 px-4 py-3">
                       <Hash className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" aria-hidden />
                       <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">CRM</dt>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                          CRM
+                        </dt>
                         <dd className="text-slate-900">{profileExtended?.crm ?? '—'}</dd>
                       </div>
                     </div>
@@ -327,7 +349,10 @@ export default function UserProfilePage() {
                 aria-labelledby="prontuario-heading"
               >
                 <div className="flex items-center justify-between gap-4 mb-6">
-                  <h2 id="prontuario-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <h2
+                    id="prontuario-heading"
+                    className="flex items-center gap-2 text-lg font-semibold text-slate-900"
+                  >
                     <FileText className="h-5 w-5 text-sky-600" aria-hidden />
                     Meu Prontuário
                   </h2>
@@ -347,17 +372,24 @@ export default function UserProfilePage() {
                   {medicalRecords.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
                       <p className="text-sm text-slate-500">
-                        {recordSearch ? 'Nenhum resultado para sua busca.' : 'Nenhuma evolução registrada ainda.'}
+                        {recordSearch
+                          ? 'Nenhum resultado para sua busca.'
+                          : 'Nenhuma evolução registrada ainda.'}
                       </p>
                     </div>
                   ) : (
                     medicalRecords.map((record) => (
-                      <div key={record.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm">
+                      <div
+                        key={record.id}
+                        className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm"
+                      >
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 text-slate-400" />
                             <span className="text-xs font-bold text-slate-600">
-                              {format(parseISO(record.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                              {format(parseISO(record.createdAt), "dd 'de' MMMM 'de' yyyy", {
+                                locale: ptBR,
+                              })}
                             </span>
                           </div>
                           <div className="flex flex-col items-end gap-1">
@@ -372,11 +404,17 @@ export default function UserProfilePage() {
                             )}
                           </div>
                         </div>
-                        <div className="prose prose-sm prose-slate max-w-none text-slate-700" dangerouslySetInnerHTML={{ __html: record.content }} />
+                        <div
+                          className="prose prose-sm prose-slate max-w-none text-slate-700"
+                          dangerouslySetInnerHTML={{ __html: record.content }}
+                        />
                         {record.status === 'SIGNED' && record.signedHash && (
                           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[8px] font-mono text-slate-400">
                             <span>Hash de Integridade: {record.signedHash}</span>
-                            <span>Assinado em: {format(parseISO(record.signatureDate!), "dd/MM/yyyy HH:mm")}</span>
+                            <span>
+                              Assinado em:{' '}
+                              {format(parseISO(record.signatureDate!), 'dd/MM/yyyy HH:mm')}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -395,7 +433,10 @@ export default function UserProfilePage() {
                 aria-labelledby="receitas-heading"
               >
                 <div className="flex items-center justify-between gap-4 mb-6">
-                  <h2 id="receitas-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <h2
+                    id="receitas-heading"
+                    className="flex items-center gap-2 text-lg font-semibold text-slate-900"
+                  >
                     <Pill className="h-5 w-5 text-emerald-600" aria-hidden />
                     Minhas Receitas
                   </h2>
@@ -410,12 +451,17 @@ export default function UserProfilePage() {
                     prescriptions.map((presc) => {
                       const meds = JSON.parse(presc.medications) as Medication[];
                       return (
-                        <div key={presc.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm">
+                        <div
+                          key={presc.id}
+                          className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:shadow-sm"
+                        >
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <Clock className="h-3.5 w-3.5 text-slate-400" />
                               <span className="text-xs font-bold text-slate-600">
-                                {format(parseISO(presc.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                                {format(parseISO(presc.createdAt), "dd 'de' MMMM 'de' yyyy", {
+                                  locale: ptBR,
+                                })}
                               </span>
                             </div>
                             <div className="flex flex-col items-end gap-1">
@@ -432,11 +478,18 @@ export default function UserProfilePage() {
                           </div>
                           <div className="space-y-3">
                             {meds.map((m, idx) => (
-                              <div key={idx} className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm">
-                                <p className="text-sm font-bold text-slate-900">{m.name} - {m.dosage}</p>
+                              <div
+                                key={idx}
+                                className="bg-white rounded-lg p-3 border border-slate-100 shadow-sm"
+                              >
+                                <p className="text-sm font-bold text-slate-900">
+                                  {m.name} - {m.dosage}
+                                </p>
                                 <p className="text-xs text-slate-600 mt-1">{m.frequency}</p>
                                 {m.instructions && (
-                                  <p className="text-[10px] text-slate-500 italic mt-1">Obs: {m.instructions}</p>
+                                  <p className="text-[10px] text-slate-500 italic mt-1">
+                                    Obs: {m.instructions}
+                                  </p>
                                 )}
                               </div>
                             ))}
@@ -444,7 +497,9 @@ export default function UserProfilePage() {
                           {presc.status === 'SIGNED' && presc.signedHash && (
                             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[8px] font-mono text-slate-400">
                               <span>Hash de Verificação: {presc.signedHash}</span>
-                              <span>Data: {format(parseISO(presc.signatureDate!), "dd/MM/yyyy HH:mm")}</span>
+                              <span>
+                                Data: {format(parseISO(presc.signatureDate!), 'dd/MM/yyyy HH:mm')}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -452,7 +507,7 @@ export default function UserProfilePage() {
                     })
                   )}
                 </div>
-                <button 
+                <button
                   className="w-full mt-4 py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:border-emerald-200 hover:text-emerald-500 transition-colors"
                   onClick={() => window.print()}
                 >
@@ -512,7 +567,10 @@ export default function UserProfilePage() {
               className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
               aria-labelledby="proximas-heading"
             >
-              <h2 id="proximas-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <h2
+                id="proximas-heading"
+                className="flex items-center gap-2 text-lg font-semibold text-slate-900"
+              >
                 <Calendar className="h-5 w-5 text-emerald-600" aria-hidden />
                 Próximas consultas
               </h2>
@@ -573,7 +631,10 @@ export default function UserProfilePage() {
               className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
               aria-labelledby="historico-heading"
             >
-              <h2 id="historico-heading" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <h2
+                id="historico-heading"
+                className="flex items-center gap-2 text-lg font-semibold text-slate-900"
+              >
                 <History className="h-5 w-5 text-slate-500" aria-hidden />
                 Histórico
               </h2>
@@ -593,7 +654,9 @@ export default function UserProfilePage() {
                     </span>
                     <div className="flex flex-wrap items-center gap-2">
                       {account.role === 'PATIENT' && (
-                        <span className="text-slate-600">Dr. {doctorNames[appt.doctorId] ?? '—'}</span>
+                        <span className="text-slate-600">
+                          Dr. {doctorNames[appt.doctorId] ?? '—'}
+                        </span>
                       )}
                       {account.role === 'DOCTOR' && (
                         <span className="text-slate-600">Paciente ID {appt.patientId}</span>

@@ -1,17 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Clock,
-  Loader2,
-  Trash2,
-  Plus,
-  FileText,
-  Pill,
-} from 'lucide-react';
+import { Clock, Loader2, Trash2, FileText, Pill } from 'lucide-react';
+import { AgendaHeader } from '@/components/agenda/AgendaHeader';
+import { CalendarToolbar } from '@/components/agenda/CalendarToolbar';
 import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 import {
@@ -324,14 +316,7 @@ export default function DoctorAgenda() {
       ) : null}
 
       <div className="mx-auto max-w-7xl space-y-8">
-        <header className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-sky-600">Área do especialista</p>
-          <h1 className="text-2xl font-bold text-slate-900">Agenda de Disponibilidade</h1>
-          <p className="mt-1 text-slate-600">
-            Configure os horários em que você está disponível para atendimentos e gerencie seus
-            modelos de consulta.
-          </p>
-        </header>
+        <AgendaHeader />
 
         {profile && (
           <ConsultationModelsManager
@@ -341,60 +326,23 @@ export default function DoctorAgenda() {
         )}
 
         <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 p-6">
-            <div className="flex items-center gap-4">
-              <h2 className="flex items-center gap-2 text-lg font-bold text-slate-800">
-                <CalendarIcon className="h-5 w-5 text-sky-600" aria-hidden />
-                Grade de Horários
-              </h2>
-              <button
-                onClick={() => {
-                  setEditingSlotId(null);
-                  setInitialModalData({
-                    date: format(new Date(), 'yyyy-MM-dd'),
-                    start: '08:00',
-                    end: '09:00',
-                    recurrence: 'NONE',
-                    isRecurrenceChecked: false,
-                  });
-                  setIsModalOpen(true);
-                }}
-                className="flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 active:scale-95"
-              >
-                <Plus className="h-4 w-4" />
-                Novo horário
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <button
-                onClick={navigateToday}
-                className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition"
-              >
-                Hoje
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={navigatePrev}
-                  className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
-                  aria-label="Semana anterior"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <span className="min-w-[140px] text-center text-base font-bold text-slate-800 capitalize">
-                  {format(baseDate, 'MMMM yyyy', { locale: ptBR })}
-                </span>
-                <button
-                  onClick={navigateNext}
-                  className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition"
-                  aria-label="Próxima semana"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <CalendarToolbar
+            baseDate={baseDate}
+            onPrev={navigatePrev}
+            onNext={navigateNext}
+            onToday={navigateToday}
+            onNewSlot={() => {
+              setEditingSlotId(null);
+              setInitialModalData({
+                date: format(new Date(), 'yyyy-MM-dd'),
+                start: '08:00',
+                end: '09:00',
+                recurrence: 'NONE',
+                isRecurrenceChecked: false,
+              });
+              setIsModalOpen(true);
+            }}
+          />
 
           <div className="overflow-x-auto">
             <div
