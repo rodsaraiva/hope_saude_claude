@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { randomBytes, createHash } from 'node:crypto';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { NotificationsService } from '../notifications/notifications.service';
 import type {
   AuthTokenResponse,
   JwtSigningPayload,
@@ -15,6 +18,8 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private notifications: NotificationsService,
+    private config: ConfigService,
   ) {}
 
   async findUserByEmail(email: string) {
@@ -90,5 +95,29 @@ export class AuthService {
 
   isPatient(user: { role: string }): boolean {
     return user.role === 'PATIENT';
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return;
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    const appUrl = this.config.get<string>('MAIL_APP_URL') ?? 'http://localhost:3001';
+    const resetUrl = `${appUrl}/reset-password?token=${token}`;
+
+    await this.notifications.sendPasswordReset({
+      to: user.email,
+      userName: user.name,
+      resetUrl,
+    });
   }
 }

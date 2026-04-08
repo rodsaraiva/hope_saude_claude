@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { NewUserInput, JwtSigningPayload } from './auth.types';
 
 describe('AuthService (TDD)', () => {
@@ -28,6 +30,14 @@ describe('AuthService (TDD)', () => {
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
+        {
+          provide: NotificationsService,
+          useValue: { sendPasswordReset: jest.fn(), sendEmailVerification: jest.fn() },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://localhost:3001') },
+        },
       ],
     }).compile();
 
@@ -128,5 +138,84 @@ describe('AuthService (TDD)', () => {
 
     const result = await service.createUser(userData);
     expect(result.id).toBe(30);
+  });
+});
+
+describe('AuthService.requestPasswordReset', () => {
+  const makeUser = () => ({
+    id: 42,
+    email: 'maria@test.com',
+    name: 'Maria',
+    role: 'PATIENT',
+    password: 'hash',
+  });
+
+  function makeService(
+    overrides: {
+      findUnique?: jest.Mock;
+      createToken?: jest.Mock;
+      sendReset?: jest.Mock;
+      configGet?: jest.Mock;
+    } = {},
+  ) {
+    const prisma = {
+      user: { findUnique: overrides.findUnique ?? jest.fn().mockResolvedValue(makeUser()) },
+      passwordResetToken: { create: overrides.createToken ?? jest.fn().mockResolvedValue({}) },
+    } as unknown as import('../prisma.service').PrismaService;
+    const notifications = {
+      sendPasswordReset: overrides.sendReset ?? jest.fn().mockResolvedValue(undefined),
+    } as unknown as import('../notifications/notifications.service').NotificationsService;
+    const config = {
+      get: overrides.configGet ?? jest.fn().mockReturnValue('https://app.test'),
+    } as unknown as import('@nestjs/config').ConfigService;
+    const jwt = {} as import('@nestjs/jwt').JwtService;
+    return {
+      service: new AuthService(prisma, jwt, notifications, config),
+      prisma,
+      notifications,
+      config,
+    };
+  }
+
+  it('usuário existente: cria token hashed, envia email, não vaza token claro', async () => {
+    const createToken = jest.fn().mockResolvedValue({});
+    const sendReset = jest.fn().mockResolvedValue(undefined);
+    const { service } = makeService({ createToken, sendReset });
+
+    await service.requestPasswordReset('maria@test.com');
+
+    expect(createToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 42,
+          tokenHash: expect.any(String),
+          expiresAt: expect.any(Date),
+        }),
+      }),
+    );
+    const savedHash = (createToken.mock.calls[0][0] as { data: { tokenHash: string } }).data
+      .tokenHash;
+    expect(savedHash).toMatch(/^[a-f0-9]{64}$/);
+
+    expect(sendReset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'maria@test.com',
+        userName: 'Maria',
+        resetUrl: expect.stringContaining('https://app.test/reset-password?token='),
+      }),
+    );
+    const url: string = (sendReset.mock.calls[0][0] as { resetUrl: string }).resetUrl;
+    expect(url).not.toContain(savedHash);
+  });
+
+  it('usuário inexistente: não cria token, não envia email, não lança', async () => {
+    const findUnique = jest.fn().mockResolvedValue(null);
+    const createToken = jest.fn();
+    const sendReset = jest.fn();
+    const { service } = makeService({ findUnique, createToken, sendReset });
+
+    await expect(service.requestPasswordReset('naoexiste@test.com')).resolves.toBeUndefined();
+    expect(createToken).not.toHaveBeenCalled();
+    expect(sendReset).not.toHaveBeenCalled();
   });
 });
