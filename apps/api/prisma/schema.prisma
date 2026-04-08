@@ -191,3 +191,45 @@ model PendingCheckout {
   @@index([doctorId, date])
   @@index([patientId])
 }
+
+model EmailOutbox {
+  id                String   @id @default(uuid())
+  to                String
+  subject           String
+  tag               String
+  status            String   @default("PENDING") // PENDING | SENT | FAILED
+  providerMessageId String?
+  errorMessage      String?
+  attempts          Int      @default(0)
+  createdAt         DateTime @default(now())
+  sentAt            DateTime?
+  failedAt          DateTime?
+
+  @@index([status, createdAt])
+  @@index([tag, createdAt])
+  @@map("email_outbox")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    Int
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    Int
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
