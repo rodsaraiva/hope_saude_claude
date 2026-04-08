@@ -33,5 +33,16 @@ services:
       - "3001:3001"
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: hope-saude-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    restart: unless-stopped
+
 volumes:
   api_data:
