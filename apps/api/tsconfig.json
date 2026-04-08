@@ -17,6 +17,7 @@
     "strictBindCallApply": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "jsx": "react-jsx"
   }
 }
