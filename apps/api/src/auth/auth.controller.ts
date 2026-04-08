@@ -7,6 +7,8 @@ import {
   Request,
   UnauthorizedException,
   NotFoundException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -17,6 +19,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthenticatedRequest } from './authenticated-request';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -39,6 +43,22 @@ export class AuthController {
       throw new UnauthorizedException('Credenciais inválidas');
     }
     return this.authService.login(user);
+  }
+
+  @ApiOperation({ summary: 'Solicita email de recuperação de senha' })
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: ForgotPasswordDto): Promise<void> {
+    await this.authService.requestPasswordReset(body.email);
+  }
+
+  @ApiOperation({ summary: 'Solicita email de verificação de conta' })
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('verify-email/request')
+  async requestEmailVerification(@Body() body: RequestEmailVerificationDto): Promise<void> {
+    await this.authService.requestEmailVerification(body.email);
   }
 
   /** Conta básica (nome, e-mail, papel) — não exige DoctorProfile/PatientProfile. */
