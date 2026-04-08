@@ -120,4 +120,28 @@ export class AuthService {
       resetUrl,
     });
   }
+
+  async requestEmailVerification(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return;
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.prisma.emailVerificationToken.create({
+      data: { userId: user.id, tokenHash, expiresAt },
+    });
+
+    const appUrl = this.config.get<string>('MAIL_APP_URL') ?? 'http://localhost:3001';
+    const verifyUrl = `${appUrl}/verify-email?token=${token}`;
+
+    await this.notifications.sendEmailVerification({
+      to: user.email,
+      userName: user.name,
+      verifyUrl,
+    });
+  }
 }

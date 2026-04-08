@@ -219,3 +219,64 @@ describe('AuthService.requestPasswordReset', () => {
     expect(sendReset).not.toHaveBeenCalled();
   });
 });
+
+describe('AuthService.requestEmailVerification', () => {
+  it('usuário existente: cria token e envia email de verificação', async () => {
+    const makeUser = () => ({
+      id: 7,
+      email: 'joao@test.com',
+      name: 'João',
+      role: 'PATIENT',
+      password: 'h',
+    });
+    const createToken = jest.fn().mockResolvedValue({});
+    const sendVerif = jest.fn().mockResolvedValue(undefined);
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(makeUser()) },
+      emailVerificationToken: { create: createToken },
+    } as unknown as import('../prisma.service').PrismaService;
+    const notifications = {
+      sendEmailVerification: sendVerif,
+    } as unknown as import('../notifications/notifications.service').NotificationsService;
+    const config = {
+      get: jest.fn().mockReturnValue('https://app.test'),
+    } as unknown as import('@nestjs/config').ConfigService;
+    const service = new AuthService(
+      prisma,
+      {} as import('@nestjs/jwt').JwtService,
+      notifications,
+      config,
+    );
+
+    await service.requestEmailVerification('joao@test.com');
+
+    expect(createToken).toHaveBeenCalled();
+    expect(sendVerif).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'joao@test.com',
+        userName: 'João',
+        verifyUrl: expect.stringContaining('https://app.test/verify-email?token='),
+      }),
+    );
+  });
+
+  it('usuário inexistente: silencioso', async () => {
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(null) },
+      emailVerificationToken: { create: jest.fn() },
+    } as unknown as import('../prisma.service').PrismaService;
+    const notifications = {
+      sendEmailVerification: jest.fn(),
+    } as unknown as import('../notifications/notifications.service').NotificationsService;
+    const config = { get: jest.fn() } as unknown as import('@nestjs/config').ConfigService;
+    const service = new AuthService(
+      prisma,
+      {} as import('@nestjs/jwt').JwtService,
+      notifications,
+      config,
+    );
+
+    await expect(service.requestEmailVerification('nope@test.com')).resolves.toBeUndefined();
+    expect(notifications.sendEmailVerification).not.toHaveBeenCalled();
+  });
+});
