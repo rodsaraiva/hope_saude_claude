@@ -73,7 +73,7 @@ model Appointment {
   doctor              User     @relation("DoctorAppointments", fields: [doctorId], references: [id])
   date                DateTime
   status              String   @default("CONFIRMED") // CONFIRMED ao persistir; COMPLETED, CANCELLED em fluxos futuros
-  paymentId           String?
+  paymentId           String?  @unique
   consultationModelId Int?
   durationMinutes     Int      @default(60)
   price               Float    @default(150.0)

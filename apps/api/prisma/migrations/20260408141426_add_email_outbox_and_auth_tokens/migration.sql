@@ -256,14 +256,3 @@ CREATE UNIQUE INDEX "email_verification_tokens_tokenHash_key" ON "email_verifica
 
 -- CreateIndex
 CREATE INDEX "email_verification_tokens_userId_idx" ON "email_verification_tokens"("userId");
-
-┌─────────────────────────────────────────────────────────┐
-│  Update available 5.22.0 -> 7.7.0                       │
-│                                                         │
-│  This is a major update - please follow the guide at    │
-│  https://pris.ly/d/major-version-upgrade                │
-│                                                         │
-│  Run the following to update                            │
-│    npm i --save-dev prisma@latest                       │
-│    npm i @prisma/client@latest                          │
-└─────────────────────────────────────────────────────────┘
