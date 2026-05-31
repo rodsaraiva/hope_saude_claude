@@ -62,4 +62,21 @@ describe('RolesGuard', () => {
 
     expect(guard.canActivate(context)).toBe(false);
   });
+
+  it('não vaza o objeto user em console.log (PII)', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['DOCTOR']);
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const context = {
+      getHandler: () => {},
+      getClass: () => {},
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { role: 'DOCTOR', email: 'leak@test.com' } }),
+      }),
+    } as unknown as ExecutionContext;
+
+    guard.canActivate(context);
+
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });
