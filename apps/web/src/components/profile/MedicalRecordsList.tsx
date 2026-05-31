@@ -15,8 +15,9 @@ interface Props {
  * de assinatura digital quando aplicável. Stateless.
  *
  * OBS: `content` é HTML do Tiptap — usamos dangerouslySetInnerHTML.
- * O conteúdo vem do backend já sanitizado via ValidationPipe +
- * decriptado (LGPD).
+ * A sanitização do HTML é feita no backend (MedicalRecordService.create/update
+ * via sanitize-html) antes de persistir; aqui o conteúdo já chega seguro e
+ * decriptado (LGPD). NÃO confiar no ValidationPipe para sanitização de HTML.
  */
 export function MedicalRecordsList({ records }: Props) {
   return (
