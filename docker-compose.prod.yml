@@ -58,6 +58,21 @@ services:
         - "traefik.http.routers.hope-web.tls.certresolver=letsencrypt"
         - "traefik.http.services.hope-web.loadbalancer.server.port=3001"
 
+  litestream:
+    image: litestream/litestream:0.3
+    command: ["replicate", "-config", "/etc/litestream.yml"]
+    env_file:
+      - /opt/hope_saude/api.env
+    volumes:
+      - /opt/hope_saude/data:/data:ro
+      - /opt/hope_saude/litestream.yml:/etc/litestream.yml:ro
+    networks:
+      - traefik-public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
 networks:
   traefik-public:
     external: true

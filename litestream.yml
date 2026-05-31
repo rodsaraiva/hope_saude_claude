@@ -1,0 +1,11 @@
+# Litestream — replicação contínua do SQLite (stopgap até PostgreSQL).
+# Variáveis (LITESTREAM_REPLICA_URL, LITESTREAM_ACCESS_KEY_ID,
+# LITESTREAM_SECRET_ACCESS_KEY) vêm de /opt/hope_saude/api.env no VPS.
+dbs:
+  - path: /data/dev.db
+    replicas:
+      - url: ${LITESTREAM_REPLICA_URL}
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+        retention: 168h
+        snapshot-interval: 1h
