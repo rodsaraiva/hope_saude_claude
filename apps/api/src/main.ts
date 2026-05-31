@@ -18,7 +18,7 @@ async function bootstrap() {
 
   // CORS com whitelist via env (CORS_ORIGINS="http://a.com,http://b.com")
   app.enableCors({
-    origin: parseCorsOrigins(process.env.CORS_ORIGINS),
+    origin: parseCorsOrigins(process.env.CORS_ORIGINS, process.env.NODE_ENV),
     credentials: true,
   });
 
