@@ -15,7 +15,11 @@ export class CryptographyService {
   private readonly secret: string;
 
   constructor(private configService: ConfigService) {
-    this.secret = this.configService.get<string>('JWT_SECRET') || 'dev-secret-key';
+    const secret = this.configService.get<string>('JWT_SECRET');
+    if (!secret || secret.trim() === '') {
+      throw new Error('JWT_SECRET não está configurada. Assinatura HMAC indisponível.');
+    }
+    this.secret = secret;
   }
 
   /**

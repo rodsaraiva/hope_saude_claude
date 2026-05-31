@@ -113,7 +113,13 @@ describe('CryptographyService', () => {
           CryptographyService,
           {
             provide: ConfigService,
-            useValue: { get: jest.fn().mockReturnValue(undefined) },
+            useValue: {
+              get: jest
+                .fn()
+                .mockImplementation((key: string) =>
+                  key === 'JWT_SECRET' ? 'test-secret' : undefined,
+                ),
+            },
           },
         ],
       }).compile();
@@ -121,5 +127,25 @@ describe('CryptographyService', () => {
       const svc = moduleNoKey.get<CryptographyService>(CryptographyService);
       expect(() => svc.encrypt('x')).toThrow(/DATA_ENCRYPTION_KEY/);
     });
+  });
+
+  it('lança quando JWT_SECRET está ausente (sem fallback inseguro)', async () => {
+    await expect(
+      Test.createTestingModule({
+        providers: [
+          CryptographyService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest
+                .fn()
+                .mockImplementation((key: string) =>
+                  key === 'DATA_ENCRYPTION_KEY' ? TEST_ENCRYPTION_KEY : undefined,
+                ),
+            },
+          },
+        ],
+      }).compile(),
+    ).rejects.toThrow(/JWT_SECRET/);
   });
 });
