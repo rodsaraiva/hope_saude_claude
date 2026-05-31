@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { AsaasService } from './asaas.service';
 import { AppointmentService } from '../appointment/appointment.service';
 import { PatientProfileRepository } from '../profile/data/patient-profile.repository';
@@ -8,8 +8,6 @@ import { AuthenticatedUser } from '../auth/authenticated-request';
 
 @Injectable()
 export class PaymentService {
-  private readonly logger = new Logger(PaymentService.name);
-
   constructor(
     private asaasService: AsaasService,
     private appointmentService: AppointmentService,
@@ -207,7 +205,7 @@ export class PaymentService {
     };
   }
 
-  /** Força confirmação do pagamento em Sandbox/Mocks para agilizar testes. */
+  /** Confirma o pagamento somente após o Asaas reportar RECEIVED/CONFIRMED, então cria a consulta. */
   async confirmPayment(userId: number, paymentId: string) {
     const pending = await this.appointmentService.findPendingCheckoutByPatientAndPayment(
       userId,
@@ -217,16 +215,18 @@ export class PaymentService {
       throw new NotFoundException('Cobrança não encontrada ou sem permissão');
     }
 
-    // Tenta marcar como recebido no Asaas (apenas sandbox)
-    try {
-      await this.asaasService.receiveInSandbox(paymentId);
-    } catch (err) {
-      this.logger.warn(
-        `ConfirmPayment: Asaas Sandbox falhou (talvez já recebido?), prosseguindo manual. ID ${paymentId}`,
+    // Em sandbox, simula o recebimento; em mock isso é no-op.
+    await this.asaasService.receiveInSandbox(paymentId);
+
+    const { status } = (await this.asaasService.getPaymentStatus(paymentId)) as {
+      status?: string;
+    };
+    if (status !== 'RECEIVED' && status !== 'CONFIRMED') {
+      throw new BadRequestException(
+        `Pagamento ainda não confirmado pelo Asaas (status: ${status ?? 'desconhecido'})`,
       );
     }
 
-    // Cria consulta e remove pendência (mesma lógica do cron)
     await this.appointmentService.createConfirmedAppointment({
       patientId: pending.patientId,
       doctorId: pending.doctorId,

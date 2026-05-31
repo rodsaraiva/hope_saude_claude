@@ -25,6 +25,7 @@ describe('PaymentService', () => {
             findCustomerIdByCpf: jest.fn(),
             createCustomer: jest.fn(),
             receiveInSandbox: jest.fn(),
+            getPaymentStatus: jest.fn(),
           },
         },
         {
@@ -122,7 +123,7 @@ describe('PaymentService', () => {
     });
   });
 
-  it('should confirm payment manual, creating appointment and deleting pending', async () => {
+  it('should confirm payment when Asaas status is RECEIVED, creating appointment and deleting pending', async () => {
     const pending = {
       id: 55,
       patientId: 1,
@@ -137,10 +138,15 @@ describe('PaymentService', () => {
       pending,
     );
     (asaasService.receiveInSandbox as jest.Mock).mockResolvedValue({ id: 'pay_manual_123' });
+    (asaasService.getPaymentStatus as jest.Mock).mockResolvedValue({
+      id: 'pay_manual_123',
+      status: 'RECEIVED',
+    });
 
     const result = await service.confirmPayment(1, 'pay_manual_123');
 
     expect(asaasService.receiveInSandbox).toHaveBeenCalledWith('pay_manual_123');
+    expect(asaasService.getPaymentStatus).toHaveBeenCalledWith('pay_manual_123');
     expect(appointmentService.createConfirmedAppointment).toHaveBeenCalledWith({
       patientId: 1,
       doctorId: 2,
@@ -154,26 +160,30 @@ describe('PaymentService', () => {
     expect(result).toEqual({ success: true });
   });
 
-  it('should confirm payment manual even if Asaas Sandbox fails (maybe already received)', async () => {
+  it('should NOT create appointment when Asaas status is not RECEIVED/CONFIRMED', async () => {
     const pending = {
       id: 56,
       patientId: 1,
       doctorId: 2,
       date: new Date('2026-04-03T10:00:00Z'),
-      asaasPaymentId: 'pay_manual_fail',
+      asaasPaymentId: 'pay_pending',
       price: 200,
       durationMinutes: 45,
     };
     (appointmentService.findPendingCheckoutByPatientAndPayment as jest.Mock).mockResolvedValue(
       pending,
     );
-    (asaasService.receiveInSandbox as jest.Mock).mockRejectedValue(new Error('Already received'));
+    (asaasService.receiveInSandbox as jest.Mock).mockResolvedValue({ id: 'pay_pending' });
+    (asaasService.getPaymentStatus as jest.Mock).mockResolvedValue({
+      id: 'pay_pending',
+      status: 'PENDING',
+    });
 
-    const result = await service.confirmPayment(1, 'pay_manual_fail');
-
-    expect(appointmentService.createConfirmedAppointment).toHaveBeenCalled();
-    expect(appointmentService.deletePendingCheckout).toHaveBeenCalledWith(56);
-    expect(result).toEqual({ success: true });
+    await expect(service.confirmPayment(1, 'pay_pending')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(appointmentService.createConfirmedAppointment).not.toHaveBeenCalled();
+    expect(appointmentService.deletePendingCheckout).not.toHaveBeenCalled();
   });
 
   it('should process credit card checkout without PIX', async () => {
