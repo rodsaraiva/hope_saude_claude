@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { intervalsOverlap } from '../availability/weekly-availability';
 
 @Injectable()
 export class AppointmentService {
@@ -157,5 +158,39 @@ export class AppointmentService {
       },
       orderBy: { date: 'asc' },
     });
+  }
+
+  /**
+   * Verifica se o intervalo [date, date+durationMinutes) colide com qualquer
+   * Appointment ou PendingCheckout existente do médico. Janela de busca alargada
+   * (±1 dia) cobre durações longas sem varrer a tabela inteira. Fim exclusivo,
+   * igual ao subtractBusyFromCandidates da disponibilidade.
+   */
+  async findOverlappingForDoctor(
+    doctorId: number,
+    date: Date,
+    durationMinutes: number,
+  ): Promise<boolean> {
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const from = new Date(date.getTime() - oneDayMs);
+    const to = new Date(date.getTime() + oneDayMs);
+
+    const [appointments, pendingCheckouts] = await Promise.all([
+      this.findAppointmentsForDoctorInRange(doctorId, from, to),
+      this.findPendingCheckoutsForDoctorInRange(doctorId, from, to),
+    ]);
+
+    const candidate = {
+      startMs: date.getTime(),
+      endMs: date.getTime() + durationMinutes * 60 * 1000,
+    };
+
+    const rows = [...appointments, ...pendingCheckouts];
+    return rows.some((r) =>
+      intervalsOverlap(candidate, {
+        startMs: r.date.getTime(),
+        endMs: r.date.getTime() + (r.durationMinutes || 60) * 60 * 1000,
+      }),
+    );
   }
 }

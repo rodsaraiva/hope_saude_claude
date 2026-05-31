@@ -176,4 +176,28 @@ describe('AppointmentService', () => {
 
     expect(prisma.pendingCheckout.delete).toHaveBeenCalledWith({ where: { id: 6 } });
   });
+
+  it('detecta sobreposição de slot somando Appointments e PendingCheckouts do médico', async () => {
+    const start = new Date('2026-07-01T10:00:00Z'); // novo slot 10:00–11:00
+    (prisma.appointment.findMany as jest.Mock).mockResolvedValue([
+      { date: new Date('2026-07-01T10:30:00Z'), durationMinutes: 60 }, // colide 10:30–11:30
+    ]);
+    (prisma.pendingCheckout.findMany as jest.Mock).mockResolvedValue([]);
+
+    const overlap = await service.findOverlappingForDoctor(20, start, 60);
+
+    expect(overlap).toBe(true);
+  });
+
+  it('retorna false quando não há sobreposição (slots adjacentes)', async () => {
+    const start = new Date('2026-07-01T11:00:00Z'); // 11:00–12:00
+    (prisma.appointment.findMany as jest.Mock).mockResolvedValue([
+      { date: new Date('2026-07-01T10:00:00Z'), durationMinutes: 60 }, // 10:00–11:00, fim exclusivo
+    ]);
+    (prisma.pendingCheckout.findMany as jest.Mock).mockResolvedValue([]);
+
+    const overlap = await service.findOverlappingForDoctor(20, start, 60);
+
+    expect(overlap).toBe(false);
+  });
 });

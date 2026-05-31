@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AsaasService } from './asaas.service';
 import { AppointmentService } from '../appointment/appointment.service';
 import { PatientProfileRepository } from '../profile/data/patient-profile.repository';
@@ -62,10 +67,20 @@ export class PaymentService {
       const model = doctorProfile?.consultationModels?.find(
         (m) => m.id === body.consultationModelId,
       );
-      if (model) {
-        value = model.price;
-        durationMinutes = model.durationMinutes;
+      if (!model) {
+        throw new BadRequestException('Modelo de consulta inválido para este médico');
       }
+      value = model.price;
+      durationMinutes = model.durationMinutes;
+    }
+
+    const overlapping = await this.appointmentService.findOverlappingForDoctor(
+      Number(body.doctorId),
+      new Date(body.date),
+      durationMinutes,
+    );
+    if (overlapping) {
+      throw new ConflictException('Este horário já está reservado para o médico');
     }
 
     const patientName = user.name || 'Paciente Anonimo';

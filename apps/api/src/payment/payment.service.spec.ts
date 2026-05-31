@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { AsaasService } from './asaas.service';
 import { AppointmentService } from '../appointment/appointment.service';
@@ -36,6 +36,7 @@ describe('PaymentService', () => {
             createConfirmedAppointment: jest.fn(),
             deletePendingCheckout: jest.fn(),
             confirmAndConsumeCheckout: jest.fn(),
+            findOverlappingForDoctor: jest.fn(),
           },
         },
         {
@@ -69,6 +70,7 @@ describe('PaymentService', () => {
       phone: '11999999999',
       asaasCustomerId: 'cus_123',
     });
+    (appointmentService.findOverlappingForDoctor as jest.Mock).mockResolvedValue(false);
     (asaasService.createPayment as jest.Mock).mockResolvedValue({
       id: 'pay_123',
       invoiceUrl: 'http://asaas.com/pay_123',
@@ -229,6 +231,7 @@ describe('PaymentService', () => {
       phone: '11999999999',
       asaasCustomerId: 'cus_123',
     });
+    (appointmentService.findOverlappingForDoctor as jest.Mock).mockResolvedValue(false);
     (asaasService.createPayment as jest.Mock).mockResolvedValue({
       id: 'pay_cc',
       invoiceUrl: 'http://asaas.com/pay_cc',
@@ -300,6 +303,52 @@ describe('PaymentService', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(appointmentService.createPendingCheckout).not.toHaveBeenCalled();
+  });
+
+  it('aborta com ConflictException quando o slot do médico já está ocupado, sem cobrar', async () => {
+    (patientRepo.findByUserId as jest.Mock).mockResolvedValue({
+      id: 1,
+      userId: 7,
+      cpf: '12345678909',
+      phone: '11999999999',
+      asaasCustomerId: 'cus_123',
+    });
+    (appointmentService.findOverlappingForDoctor as jest.Mock).mockResolvedValue(true);
+
+    const user = { userId: 7, name: 'João', email: 'joao@test.com', role: 'PATIENT' as const };
+
+    await expect(
+      service.processCheckout(user, { doctorId: 42, date: '2026-06-15T14:00:00.000Z' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(asaasService.createPayment).not.toHaveBeenCalled();
+    expect(appointmentService.createPendingCheckout).not.toHaveBeenCalled();
+  });
+
+  it('rejeita consultationModelId inexistente com BadRequest em vez de default silencioso', async () => {
+    (patientRepo.findByUserId as jest.Mock).mockResolvedValue({
+      id: 1,
+      userId: 7,
+      cpf: '12345678909',
+      phone: '11999999999',
+      asaasCustomerId: 'cus_123',
+    });
+    (appointmentService.findOverlappingForDoctor as jest.Mock).mockResolvedValue(false);
+    (doctorRepo.findByUserIdWithConsultationModels as jest.Mock).mockResolvedValue({
+      consultationModels: [{ id: 1, price: 250, durationMinutes: 50 }],
+    });
+
+    const user = { userId: 7, name: 'João', email: 'joao@test.com', role: 'PATIENT' as const };
+
+    await expect(
+      service.processCheckout(user, {
+        doctorId: 42,
+        date: '2026-06-15T14:00:00.000Z',
+        consultationModelId: 999,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(asaasService.createPayment).not.toHaveBeenCalled();
   });
 
   describe('ensureAsaasCustomerId', () => {
