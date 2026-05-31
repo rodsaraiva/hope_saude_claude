@@ -240,6 +240,25 @@ describe('MedicalRecordService', () => {
     expect(result.content).toBe(newContent);
   });
 
+  it('sanitiza o content (remove <script>) antes de encriptar no update', async () => {
+    const doctorId = 1;
+    const recordId = 1;
+
+    mockPrisma.medicalRecord.findUnique.mockResolvedValue({
+      id: recordId,
+      doctorId,
+      status: 'DRAFT',
+      content: 'ENC(antigo)',
+    });
+    mockPrisma.medicalRecord.update.mockImplementation(({ data }) =>
+      Promise.resolve({ id: recordId, ...data }),
+    );
+
+    await service.update(doctorId, recordId, '<p>ok</p><script>alert(1)</script>');
+
+    expect(mockCrypto.encryptNullable).toHaveBeenCalledWith('<p>ok</p>');
+  });
+
   it('não deve permitir que outro médico atualize o prontuário', async () => {
     mockPrisma.medicalRecord.findUnique.mockResolvedValue({
       id: 1,
