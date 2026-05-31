@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma.service';
 import { CryptographyService } from '../common/cryptography.service';
 import { SignatureProvider } from '../common/signature.provider';
+import { sanitizeMedicalHtml } from '../common/html-sanitizer';
 
 /**
  * MedicalRecordService.
@@ -72,7 +73,8 @@ export class MedicalRecordService {
       }
     }
 
-    const encryptedContent = this.cryptoService.encryptNullable(data.content);
+    const sanitized = sanitizeMedicalHtml(data.content);
+    const encryptedContent = this.cryptoService.encryptNullable(sanitized);
 
     const created = await this.prisma.medicalRecord.create({
       data: {
@@ -156,7 +158,9 @@ export class MedicalRecordService {
       throw new ForbiddenException('Não é possível editar um prontuário já assinado');
     }
 
-    const newEncryptedContent = this.cryptoService.encryptNullable(content) as string;
+    const newEncryptedContent = this.cryptoService.encryptNullable(
+      sanitizeMedicalHtml(content),
+    ) as string;
 
     // Usar transação para garantir auditoria
     const updated = await this.prisma.$transaction(async (tx) => {

@@ -125,6 +125,21 @@ describe('MedicalRecordService', () => {
     ).rejects.toThrow(ForbiddenException);
   });
 
+  it('sanitiza o content (remove <script>) antes de encriptar no create', async () => {
+    mockPrisma.appointment.findFirst.mockResolvedValue({ id: 1 });
+    mockPrisma.medicalRecord.create.mockImplementation(({ data }) =>
+      Promise.resolve({ id: 1, ...data }),
+    );
+
+    await service.create({
+      doctorId: 5,
+      patientId: 10,
+      content: '<p>ok</p><script>alert(1)</script>',
+    });
+
+    expect(mockCrypto.encryptNullable).toHaveBeenCalledWith('<p>ok</p>');
+  });
+
   it('não deve criar prontuário se não houver agendamento prévio com o paciente', async () => {
     mockPrisma.appointment.findFirst.mockResolvedValue(null);
 
