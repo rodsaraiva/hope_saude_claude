@@ -51,6 +51,6 @@ describe('HealthController', () => {
 
     const result = await controller.check();
 
-    expect(result.info.database.status).toBe('down');
+    expect(result.info?.database?.status).toBe('down');
   });
 });
