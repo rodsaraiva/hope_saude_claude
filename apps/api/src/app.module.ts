@@ -15,10 +15,15 @@ import { PrescriptionModule } from './prescription/prescription.module';
 import { HealthModule } from './health/health.module';
 import { ClinicalScaleModule } from './clinical-scale/clinical-scale.module';
 import { buildPinoConfig } from './common/logger/logger.config';
+import { buildEnvValidationSchema } from './config/env.validation';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: buildEnvValidationSchema(),
+      validationOptions: { allowUnknown: true, abortEarly: false },
+    }),
     LoggerModule.forRoot(buildPinoConfig()),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
