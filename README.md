@@ -5,7 +5,7 @@ eletrônica com assinatura digital.
 
 Monorepo com:
 
-- **`apps/api`** — NestJS 10 + Prisma 5 + SQLite (dev), JWT, LiveKit, Asaas
+- **`apps/api`** — NestJS 11 + Prisma 5 + SQLite (dev), JWT, LiveKit, Asaas
 - **`apps/web`** — Next.js 15 (App Router) + React 19 + TanStack Query + Tailwind 3
 
 ## Princípios
@@ -107,6 +107,9 @@ src/
 ├── prescription/      # Receitas com assinatura digital
 ├── video/             # LiveKit token
 ├── health/            # GET /health (Terminus, ping ao banco)
+├── availability/      # Disponibilidade semanal do médico + cálculo de slots
+├── notifications/     # EmailOutbox + MailProvider (Postmark/SMTP por env)
+├── clinical-scale/    # Escalas clínicas (PHQ9, GAD7, AUDIT, MoCA)
 └── common/
     ├── cryptography.service.ts   # AES-256-GCM (CPF), HMAC (sign/verify)
     ├── prisma-exception.filter.ts # P2025→404, P2002→409, P2003→400
@@ -177,7 +180,7 @@ src/
 - **Jest + Testing Library** (api e web independentes)
 - **ESLint** + **Prettier** + **eslint-plugin-jsx-a11y** (root)
 - **Husky** + **lint-staged** rodam `eslint --fix` + `prettier --write` no pre-commit
-- **GitHub Actions** (`.github/workflows/ci.yml`) — lint + test + audit em PRs
+- **GitHub Actions** (`.github/workflows/ci.yml`) — lint + typecheck + test + audit em PRs
 
 ## Deploy
 
@@ -204,10 +207,18 @@ Healthchecks via `GET /health` (Terminus): pinga o banco antes de o Swarm declar
 
 ## Testes
 
-- **API**: 170 testes em 30 suítes — `cd apps/api && npx jest`
-- **Web**: 98 testes em 23 suítes — `cd apps/web && npx jest`
+Rode e conte localmente (números mudam a cada sprint):
 
-Cobertura: roda `npx jest --coverage`.
+```bash
+cd apps/api && npx jest        # unit da API
+cd apps/web && npx jest        # unit do web
+cd apps/api && npm run test:e2e  # e2e (REQUER Mailpit em :1025/:8025 e DB migrado)
+```
+
+Os e2e (`apps/api/test/*.e2e-spec.ts`) dependem de Mailpit e SMTP — suba via
+`docker compose up mailpit` antes. Eles NÃO rodam no `npx jest` padrão (só unit).
+
+Cobertura: `npx jest --coverage`.
 
 ## Roadmap
 
@@ -223,6 +234,9 @@ Cobertura: roda `npx jest --coverage`.
 - ✅ Decomposição inicial das páginas monolíticas
 - ✅ Next.js 13 → 15, React 18 → 19
 - ✅ GitHub Actions CI
+- ✅ Logging estruturado (nestjs-pino) no bootstrap
+- ✅ Swagger / OpenAPI em `/api/docs` (`@nestjs/swagger`)
+- ✅ Módulos `availability` (slots/agenda), `notifications` (EmailOutbox + MailProvider) e `clinical-scale` (PHQ9/GAD7/AUDIT/MoCA)
 
 **Limitações conhecidas**
 - 🔒 Busca por content em prontuários **desabilitada** após criptografia em
@@ -235,8 +249,6 @@ Cobertura: roda `npx jest --coverage`.
 - ⏳ Search server-side sobre conteúdo encriptado
 - ⏳ Continuar decomposição de páginas (`agenda` ainda 662 linhas, `profile` 602)
 - ⏳ Migrar mais `fetch` solto para hooks de Query
-- ⏳ Sentry / Pino logger estruturado
-- ⏳ Swagger (`@nestjs/swagger`) — DTOs já compatíveis
 - ⏳ Resolver vulns transitivas em devDeps
 
 ## Contribuindo
