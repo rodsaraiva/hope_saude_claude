@@ -83,6 +83,7 @@ model Appointment {
   medicalRecord MedicalRecord?
   prescriptions Prescription[]
 
+  @@unique([doctorId, date])
   @@index([doctorId, date])
   @@index([patientId, date])
   @@index([date])
