@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Body, UseGuards, Param, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Param,
+  Request,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
@@ -24,12 +33,15 @@ export class PaymentController {
     return this.paymentService.getPixQrData(req.user.userId, paymentId);
   }
 
-  /** Forçar recebimento de pagamento em sandbox (apenas para testes/agilidade). */
+  /** Força recebimento de pagamento em sandbox (apenas para testes/agilidade; bloqueado em produção). */
   @Post(':paymentId/confirm')
   async confirmPayment(
     @Request() req: AuthenticatedRequest,
     @Param('paymentId') paymentId: string,
   ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Confirmação manual de pagamento indisponível em produção');
+    }
     return this.paymentService.confirmPayment(req.user.userId, paymentId);
   }
 }
