@@ -7,6 +7,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsFutureDate } from './is-future-date.validator';
 
 export class CreditCardDto {
   @IsString()
@@ -46,6 +47,7 @@ export class CheckoutDto {
   doctorId!: number;
 
   @IsDateString()
+  @IsFutureDate()
   date!: string;
 
   @IsNumber()
