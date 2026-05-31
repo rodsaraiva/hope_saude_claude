@@ -35,6 +35,7 @@ describe('PaymentService', () => {
             findPendingCheckoutByPatientAndPayment: jest.fn(),
             createConfirmedAppointment: jest.fn(),
             deletePendingCheckout: jest.fn(),
+            confirmAndConsumeCheckout: jest.fn(),
           },
         },
         {
@@ -123,7 +124,7 @@ describe('PaymentService', () => {
     });
   });
 
-  it('should confirm payment when Asaas status is RECEIVED, creating appointment and deleting pending', async () => {
+  it('should confirm payment when Asaas status is RECEIVED via confirmAndConsumeCheckout (atômico)', async () => {
     const pending = {
       id: 55,
       patientId: 1,
@@ -142,21 +143,55 @@ describe('PaymentService', () => {
       id: 'pay_manual_123',
       status: 'RECEIVED',
     });
+    (appointmentService.confirmAndConsumeCheckout as jest.Mock).mockResolvedValue({
+      alreadyConfirmed: false,
+    });
 
     const result = await service.confirmPayment(1, 'pay_manual_123');
 
     expect(asaasService.receiveInSandbox).toHaveBeenCalledWith('pay_manual_123');
     expect(asaasService.getPaymentStatus).toHaveBeenCalledWith('pay_manual_123');
-    expect(appointmentService.createConfirmedAppointment).toHaveBeenCalledWith({
+    expect(appointmentService.confirmAndConsumeCheckout).toHaveBeenCalledWith({
+      pendingCheckoutId: 55,
       patientId: 1,
       doctorId: 2,
       date: pending.date,
       paymentId: 'pay_manual_123',
       consultationModelId: 10,
+      durationMinutes: 45,
+      price: 200,
+    });
+    expect(result).toEqual({ success: true });
+  });
+
+  it('confirma como no-op idempotente quando o checkout já foi confirmado (alreadyConfirmed)', async () => {
+    const pending = {
+      id: 56,
+      patientId: 1,
+      doctorId: 2,
+      date: new Date('2026-04-03T10:00:00Z'),
+      asaasPaymentId: 'pay_dup',
       price: 200,
       durationMinutes: 45,
+      consultationModelId: null,
+    };
+    (appointmentService.findPendingCheckoutByPatientAndPayment as jest.Mock).mockResolvedValue(
+      pending,
+    );
+    (asaasService.receiveInSandbox as jest.Mock).mockResolvedValue({ id: 'pay_dup' });
+    (asaasService.getPaymentStatus as jest.Mock).mockResolvedValue({
+      id: 'pay_dup',
+      status: 'CONFIRMED',
     });
-    expect(appointmentService.deletePendingCheckout).toHaveBeenCalledWith(55);
+    (appointmentService.confirmAndConsumeCheckout as jest.Mock).mockResolvedValue({
+      alreadyConfirmed: true,
+    });
+
+    const result = await service.confirmPayment(1, 'pay_dup');
+
+    expect(appointmentService.confirmAndConsumeCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ pendingCheckoutId: 56, paymentId: 'pay_dup' }),
+    );
     expect(result).toEqual({ success: true });
   });
 

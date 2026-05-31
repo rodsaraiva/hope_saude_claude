@@ -227,7 +227,9 @@ export class PaymentService {
       );
     }
 
-    await this.appointmentService.createConfirmedAppointment({
+    // Cria consulta e remove pendência atomicamente (mesma lógica do cron)
+    await this.appointmentService.confirmAndConsumeCheckout({
+      pendingCheckoutId: pending.id,
       patientId: pending.patientId,
       doctorId: pending.doctorId,
       date: pending.date,
@@ -236,7 +238,6 @@ export class PaymentService {
       durationMinutes: pending.durationMinutes,
       price: pending.price,
     });
-    await this.appointmentService.deletePendingCheckout(pending.id);
 
     return { success: true };
   }
