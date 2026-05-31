@@ -31,6 +31,10 @@ COPY --from=builder /workspace/apps/api/dist ./dist
 COPY --from=builder /workspace/apps/api/prisma ./prisma
 COPY --from=builder /workspace/apps/api/package.json ./package.json
 
+# Entrypoint aplica migrations antes do CMD
+COPY --from=builder /workspace/apps/api/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
 USER app
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
