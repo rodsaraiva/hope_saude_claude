@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 import { AppointmentService } from './appointment.service';
 import { PrismaService } from '../prisma.service';
 
@@ -20,6 +21,7 @@ describe('AppointmentService', () => {
               findFirst: jest.fn(),
               delete: jest.fn(),
             },
+            $transaction: jest.fn(),
           },
         },
       ],
@@ -108,5 +110,70 @@ describe('AppointmentService', () => {
       },
       orderBy: { date: 'asc' },
     });
+  });
+
+  it('confirma e consome checkout dentro de uma transação (cria consulta + apaga pendência)', async () => {
+    const date = new Date('2026-07-01T10:00:00Z');
+    const tx = {
+      appointment: { create: jest.fn().mockResolvedValue({ id: 99 }) },
+      pendingCheckout: { delete: jest.fn().mockResolvedValue({ id: 5 }) },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx),
+    );
+
+    await service.confirmAndConsumeCheckout({
+      pendingCheckoutId: 5,
+      patientId: 10,
+      doctorId: 20,
+      date,
+      paymentId: 'pay_111',
+      consultationModelId: 7,
+      durationMinutes: 45,
+      price: 200,
+    });
+
+    expect(tx.appointment.create).toHaveBeenCalledWith({
+      data: {
+        patientId: 10,
+        doctorId: 20,
+        date,
+        status: 'CONFIRMED',
+        paymentId: 'pay_111',
+        consultationModelId: 7,
+        durationMinutes: 45,
+        price: 200,
+      },
+    });
+    expect(tx.pendingCheckout.delete).toHaveBeenCalledWith({ where: { id: 5 } });
+  });
+
+  it('trata P2002 (paymentId duplicado) como no-op idempotente removendo só a pendência', async () => {
+    const date = new Date('2026-07-01T10:00:00Z');
+    const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+      code: 'P2002',
+      clientVersion: 'x',
+      meta: { target: ['paymentId'] },
+    });
+    const tx = {
+      appointment: { create: jest.fn().mockRejectedValue(p2002) },
+      pendingCheckout: { delete: jest.fn() },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx),
+    );
+    (prisma.pendingCheckout.delete as jest.Mock).mockResolvedValue({ id: 6 });
+
+    await expect(
+      service.confirmAndConsumeCheckout({
+        pendingCheckoutId: 6,
+        patientId: 10,
+        doctorId: 20,
+        date,
+        paymentId: 'pay_dup',
+      }),
+    ).resolves.toEqual({ alreadyConfirmed: true });
+
+    expect(prisma.pendingCheckout.delete).toHaveBeenCalledWith({ where: { id: 6 } });
   });
 });

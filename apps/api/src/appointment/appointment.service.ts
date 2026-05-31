@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
@@ -53,6 +54,48 @@ export class AppointmentService {
         price: data.price ?? 150.0,
       },
     });
+  }
+
+  /**
+   * Cria a consulta CONFIRMED e remove a pendência numa única transação.
+   * O @unique de paymentId garante que ticks concorrentes não dupliquem:
+   * se P2002 ocorrer, a consulta já existe (tick anterior) — apenas limpamos
+   * a pendência órfã e tratamos como sucesso idempotente.
+   */
+  async confirmAndConsumeCheckout(data: {
+    pendingCheckoutId: number;
+    patientId: number;
+    doctorId: number;
+    date: Date;
+    paymentId: string;
+    consultationModelId?: number;
+    durationMinutes?: number;
+    price?: number;
+  }): Promise<{ alreadyConfirmed: boolean }> {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.appointment.create({
+          data: {
+            patientId: data.patientId,
+            doctorId: data.doctorId,
+            date: data.date,
+            status: 'CONFIRMED',
+            paymentId: data.paymentId,
+            consultationModelId: data.consultationModelId,
+            durationMinutes: data.durationMinutes ?? 60,
+            price: data.price ?? 150.0,
+          },
+        });
+        await tx.pendingCheckout.delete({ where: { id: data.pendingCheckoutId } });
+      });
+      return { alreadyConfirmed: false };
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        await this.prisma.pendingCheckout.delete({ where: { id: data.pendingCheckoutId } });
+        return { alreadyConfirmed: true };
+      }
+      throw err;
+    }
   }
 
   async getPatientAppointments(patientId: number) {
