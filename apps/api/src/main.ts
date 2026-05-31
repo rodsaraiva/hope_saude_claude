@@ -33,6 +33,9 @@ async function bootstrap() {
   // Traduz erros do Prisma (P2025, P2002, P2003, ...) em respostas HTTP adequadas
   app.useGlobalFilters(new PrismaExceptionFilter());
 
+  // Garante onModuleDestroy (PrismaService.$disconnect) em SIGTERM/SIGINT (Swarm)
+  app.enableShutdownHooks();
+
   // OpenAPI / Swagger UI em /api/docs (apenas em dev por padrão)
   if (process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true') {
     const swaggerConfig = new DocumentBuilder()
