@@ -144,7 +144,7 @@ quebrando o pipeline. Unit run volta a cobrir so src/; e2e via test:e2e."
 
 ### Task 2: Adicionar typecheck ao CI (tsc --noEmit api + build web)
 
-O `ci.yml` atual roda apenas lint + jest. O TypeScript strict do projeto (`noImplicitAny`, `strictNullChecks`) só é validado no build, que não roda em CI. Adicionamos `npx tsc --noEmit` no job `api` e `npm run build` (que invoca `next build` = typecheck) no job `web`.
+O `ci.yml` atual roda apenas lint + jest. O TypeScript strict do projeto (`noImplicitAny`, `strictNullChecks`) só é validado no build, que não roda em CI. Adicionamos `npx tsc --noEmit` no job `api` e `npm run build` (que invoca `next build` = typecheck) no job `web`. Além disso, corrigimos o step `Run API tests` (`npx jest` → `npm test`): `npx jest` puro NÃO seta `NODE_OPTIONS=--experimental-vm-modules`, então os specs de template React Email (`src/notifications/templates/*`, `notifications.service.spec`) quebram no CI com `A dynamic import callback was invoked without --experimental-vm-modules` — o job de API está vermelho hoje por isso.
 
 **Files:**
 - Modify: `/root/rodrigo/hope_saude/apps/api/package.json`
@@ -192,12 +192,33 @@ No job `web`, adicione um step APÓS "Lint web" (o `next build` faz typecheck do
           NEXT_PUBLIC_API_URL: 'http://localhost:3000'
 ```
 
+Ainda no job `api`, corrija o step existente **Run API tests** para usar a flag ESM (senão os specs de template React Email falham no CI). Troque:
+
+```yaml
+      - name: Run API tests
+        run: npx jest
+```
+
+por:
+
+```yaml
+      - name: Run API tests
+        run: npm test
+```
+
+(`npm test` = `NODE_OPTIONS=--experimental-vm-modules jest`, já definido no `apps/api/package.json`. O job `web` mantém `npx jest` — não usa React Email.)
+
 - [ ] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /root/rodrigo/hope_saude && grep -c "Typecheck API\|Build web" .github/workflows/ci.yml
 ```
 Expected: `2` — ambos os steps presentes.
+
+```bash
+cd /root/rodrigo/hope_saude && grep -c "run: npm test" .github/workflows/ci.yml
+```
+Expected: `1` — o step `Run API tests` passou a usar `npm test` (com a flag ESM).
 
 ```bash
 cd /root/rodrigo/hope_saude && python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml')); print('YAML OK')"
@@ -208,9 +229,11 @@ Expected: `YAML OK` — o workflow continua sintaticamente válido.
 
 ```bash
 cd /root/rodrigo/hope_saude && git add apps/api/package.json .github/workflows/ci.yml
-git commit -m "ci: adicionar typecheck (tsc --noEmit) na api e build na web
+git commit -m "ci: typecheck (tsc --noEmit) na api + build na web + npm test na api
 
-Strict mode so era validado no build; uma regressao de tipo passava batido no CI."
+Strict mode so era validado no build; uma regressao de tipo passava batido no CI.
+Run API tests passa a usar npm test (NODE_OPTIONS=--experimental-vm-modules),
+senao os specs de template React Email quebram no runner."
 ```
 
 ---
