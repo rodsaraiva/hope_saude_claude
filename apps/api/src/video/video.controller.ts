@@ -26,6 +26,11 @@ export class VideoController {
       throw new ForbiddenException('Consulta não confirmada ou inexistente');
     }
 
+    const isParticipant = req.user.userId === appt.patientId || req.user.userId === appt.doctorId;
+    if (!isParticipant) {
+      throw new ForbiddenException('Você não participa desta consulta');
+    }
+
     const payload = await this.videoService.generateToken(
       `room-${appointmentId}`,
       req.user.email ?? `user-${req.user.userId}`,
