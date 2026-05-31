@@ -10,11 +10,21 @@ export class AsaasService {
   constructor(private configService: ConfigService) {
     this.apiUrl =
       this.configService.get<string>('ASAAS_API_URL') || 'https://sandbox.asaas.com/api/v3';
-    this.apiKey = this.configService.get<string>('ASAAS_API_KEY') || 'MOCK_API_KEY';
+    const key = this.configService.get<string>('ASAAS_API_KEY');
+    if (!key || key.trim() === '') {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'ASAAS_API_KEY não está configurada. Pagamentos indisponíveis em produção.',
+        );
+      }
+      this.apiKey = 'MOCK_API_KEY';
+    } else {
+      this.apiKey = key;
+    }
   }
 
   private isMock(): boolean {
-    return this.apiKey === 'MOCK_API_KEY' && process.env.NODE_ENV !== 'test';
+    return this.apiKey === 'MOCK_API_KEY' && process.env.NODE_ENV !== 'production';
   }
 
   private async asaasFetch(path: string, options: RequestInit): Promise<Response> {

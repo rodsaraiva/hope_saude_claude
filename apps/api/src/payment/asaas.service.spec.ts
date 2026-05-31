@@ -2,6 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AsaasService } from './asaas.service';
 import { ConfigService } from '@nestjs/config';
 
+function buildConfig(values: Record<string, string | undefined>): ConfigService {
+  return {
+    get: jest.fn((key: string) => values[key]),
+  } as unknown as ConfigService;
+}
+
 describe('AsaasService', () => {
   let service: AsaasService;
 
@@ -14,7 +20,8 @@ describe('AsaasService', () => {
           useValue: {
             get: jest.fn((key: string) => {
               if (key === 'ASAAS_API_URL') return 'https://sandbox.asaas.com/api/v3';
-              if (key === 'ASAAS_API_KEY') return 'MOCK_API_KEY';
+              // Chave real para exercitar o caminho de fetch (isMock=false fora de mock).
+              if (key === 'ASAAS_API_KEY') return 'real_test_key';
               return null;
             }),
           },
@@ -184,5 +191,46 @@ describe('AsaasService', () => {
       }),
     );
     expect(result.status).toBe('RECEIVED');
+  });
+
+  describe('fail-fast no boot + isMock() restrito', () => {
+    const originalEnv = process.env.NODE_ENV;
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('lança no construtor quando ASAAS_API_KEY falta em produção', () => {
+      process.env.NODE_ENV = 'production';
+      expect(() => new AsaasService(buildConfig({}))).toThrow(/ASAAS_API_KEY/);
+    });
+
+    it('constrói normalmente em produção quando ASAAS_API_KEY está presente', () => {
+      process.env.NODE_ENV = 'production';
+      expect(() => new AsaasService(buildConfig({ ASAAS_API_KEY: 'real_key' }))).not.toThrow();
+    });
+
+    it('em test sem chave usa MOCK e getPaymentStatus retorna RECEIVED', async () => {
+      process.env.NODE_ENV = 'test';
+      const svc = new AsaasService(buildConfig({}));
+      await expect(svc.getPaymentStatus('pay_x')).resolves.toEqual({
+        id: 'pay_x',
+        status: 'RECEIVED',
+      });
+    });
+
+    it('em development com chave real NÃO usa MOCK (createCustomer não retorna mock id)', async () => {
+      process.env.NODE_ENV = 'development';
+      const svc = new AsaasService(buildConfig({ ASAAS_API_KEY: 'real_key' }));
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(new Response(JSON.stringify({ id: 'cus_real' }), { status: 200 }));
+
+      const result = await svc.createCustomer('Nome', 'a@b.com', '12345678909');
+
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(result).toEqual({ id: 'cus_real' });
+      fetchSpy.mockRestore();
+    });
   });
 });
