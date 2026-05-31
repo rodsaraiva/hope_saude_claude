@@ -120,7 +120,6 @@ export function MedicalRecordModal({
     if (!confirm(msg)) return;
 
     localStorage.setItem('pending_signature_record_id', String(editingId));
-    localStorage.setItem('pending_signature_content', content);
 
     const url = getLacunaAuthorizeUrl(editingId, 'medical-record');
     window.location.href = url;
