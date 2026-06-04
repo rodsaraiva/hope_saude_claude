@@ -198,6 +198,7 @@ model EmailOutbox {
   to                String
   subject           String
   tag               String
+  payload           String?  // JSON com contexto (userName, url) p/ re-render no worker
   status            String   @default("PENDING") // PENDING | SENT | FAILED
   providerMessageId String?
   errorMessage      String?
