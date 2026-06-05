@@ -171,4 +171,25 @@ export class AuthService {
       verifyUrl,
     });
   }
+
+  async confirmEmailVerification(token: string): Promise<void> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const record = await this.prisma.emailVerificationToken.findUnique({ where: { tokenHash } });
+
+    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('Token inválido ou expirado');
+    }
+
+    const usedAt = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.emailVerificationToken.update({
+        where: { id: record.id },
+        data: { usedAt },
+      });
+      await tx.emailVerificationToken.updateMany({
+        where: { userId: record.userId, usedAt: null, id: { not: record.id } },
+        data: { usedAt },
+      });
+    });
+  }
 }

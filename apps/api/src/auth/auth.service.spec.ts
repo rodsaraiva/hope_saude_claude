@@ -374,3 +374,84 @@ describe('AuthService.resetPassword', () => {
     );
   });
 });
+
+describe('AuthService.confirmEmailVerification', () => {
+  const tokenClaro = 'b'.repeat(64);
+  const hashDe = (t: string) => require('node:crypto').createHash('sha256').update(t).digest('hex');
+
+  function makeService(tokenRow: unknown) {
+    const tx = {
+      emailVerificationToken: {
+        update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+    const prisma = {
+      emailVerificationToken: { findUnique: jest.fn().mockResolvedValue(tokenRow) },
+      $transaction: jest.fn(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx)),
+    } as unknown as import('../prisma.service').PrismaService;
+    const service = new AuthService(
+      prisma,
+      {} as import('@nestjs/jwt').JwtService,
+      {
+        sendEmailVerification: jest.fn(),
+      } as unknown as import('../notifications/notifications.service').NotificationsService,
+      { get: jest.fn() } as unknown as import('@nestjs/config').ConfigService,
+    );
+    return { service, prisma, tx };
+  }
+
+  it('token válido: marca usedAt e invalida demais tokens', async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const { service, prisma, tx } = makeService({
+      id: 'ev-1',
+      userId: 7,
+      tokenHash: hashDe(tokenClaro),
+      expiresAt: future,
+      usedAt: null,
+    });
+
+    await service.confirmEmailVerification(tokenClaro);
+
+    expect(prisma.emailVerificationToken.findUnique).toHaveBeenCalledWith({
+      where: { tokenHash: hashDe(tokenClaro) },
+    });
+    expect(tx.emailVerificationToken.update).toHaveBeenCalledWith({
+      where: { id: 'ev-1' },
+      data: { usedAt: expect.any(Date) },
+    });
+    expect(tx.emailVerificationToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 7, usedAt: null, id: { not: 'ev-1' } },
+      data: { usedAt: expect.any(Date) },
+    });
+  });
+
+  it('token inexistente/expirado/usado: BadRequestException', async () => {
+    const { service: s1 } = makeService(null);
+    await expect(s1.confirmEmailVerification(tokenClaro)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+
+    const { service: s2 } = makeService({
+      id: 'ev-2',
+      userId: 7,
+      tokenHash: hashDe(tokenClaro),
+      expiresAt: new Date(Date.now() - 1000),
+      usedAt: null,
+    });
+    await expect(s2.confirmEmailVerification(tokenClaro)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+
+    const { service: s3 } = makeService({
+      id: 'ev-3',
+      userId: 7,
+      tokenHash: hashDe(tokenClaro),
+      expiresAt: new Date(Date.now() + 1000),
+      usedAt: new Date(),
+    });
+    await expect(s3.confirmEmailVerification(tokenClaro)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+});
