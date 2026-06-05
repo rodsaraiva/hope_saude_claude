@@ -17,6 +17,7 @@ import { useAppointmentsMe } from '@/lib/query/use-appointments-me';
 import { useMedicalRecords } from '@/lib/query/use-medical-records';
 import { usePrescriptions } from '@/lib/query/use-prescriptions';
 import { useDoctorsList } from '@/lib/query/use-doctors';
+import { useCancelAppointment } from '@/lib/query/use-cancel-appointment';
 import { format, parseISO } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 
@@ -63,6 +64,7 @@ export default function UserProfilePage() {
   const { data: medicalRecords = [] } = useMedicalRecords(isPatient ? (account?.id ?? null) : null);
   const { data: prescriptions = [] } = usePrescriptions(isPatient ? (account?.id ?? null) : null);
   const { data: doctors = [] } = useDoctorsList();
+  const cancelAppointment = useCancelAppointment();
 
   // Normaliza o shape do profile/me (o hook retorna {profile}|{notFound:true})
   const profileExtended: ProfilePayload | null = useMemo(() => {
@@ -271,6 +273,11 @@ export default function UserProfilePage() {
               upcoming={upcoming}
               userRole={account.role}
               doctorNames={doctorNames}
+              onCancel={(id) => {
+                if (window.confirm('Tem certeza que deseja cancelar esta consulta?')) {
+                  cancelAppointment.mutate({ id });
+                }
+              }}
             />
 
             <AppointmentsHistoryCard
