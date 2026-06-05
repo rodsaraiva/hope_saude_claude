@@ -42,4 +42,16 @@ describe('registerProcessHandlers', () => {
     expect(logger.fatal).toHaveBeenCalledTimes(1);
     expect(String(logger.fatal.mock.calls[0][0])).toContain('uncaughtException');
   });
+
+  it('cai para logger.error em uncaughtException quando o logger não tem fatal', () => {
+    const errorOnly = { error: jest.fn() };
+    const proc = fakeProcess();
+    registerProcessHandlers(
+      errorOnly as unknown as LoggerService,
+      proc as unknown as NodeJS.Process,
+    );
+    proc.emit('uncaughtException', new Error('estourou'));
+    expect(errorOnly.error).toHaveBeenCalledTimes(1);
+    expect(String(errorOnly.error.mock.calls[0][0])).toContain('uncaughtException');
+  });
 });
