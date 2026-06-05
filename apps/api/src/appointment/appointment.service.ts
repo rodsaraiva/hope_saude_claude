@@ -6,11 +6,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma.service';
+import { intervalsOverlap } from '../availability/weekly-availability';
 
 /** Antecedência mínima para o PACIENTE cancelar (médico não tem janela). */
 const PATIENT_CANCEL_MIN_LEAD_MS = 24 * 60 * 60 * 1000;
-import { PrismaService } from '../prisma.service';
-import { intervalsOverlap } from '../availability/weekly-availability';
 
 @Injectable()
 export class AppointmentService {
