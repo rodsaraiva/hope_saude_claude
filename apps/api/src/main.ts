@@ -5,13 +5,16 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { parseCorsOrigins } from './common/cors.util';
-import { PrismaExceptionFilter } from './common/prisma-exception.filter';
+import { globalExceptionFilters } from './common/global-filters';
+import { registerProcessHandlers } from './observability/bootstrap-handlers';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
   // Pino estruturado como logger global (substitui o Logger padrão do Nest)
-  app.useLogger(app.get(Logger));
+  const logger = app.get(Logger);
+  app.useLogger(logger);
+  registerProcessHandlers(logger);
 
   // Security headers
   app.use(helmet());
@@ -30,8 +33,8 @@ async function bootstrap() {
     }),
   );
 
-  // Traduz erros do Prisma (P2025, P2002, P2003, ...) em respostas HTTP adequadas
-  app.useGlobalFilters(new PrismaExceptionFilter());
+  // Filtros globais de exceção — ordem travada por global-filters.spec.ts
+  app.useGlobalFilters(...globalExceptionFilters());
 
   // Garante onModuleDestroy (PrismaService.$disconnect) em SIGTERM/SIGINT (Swarm)
   app.enableShutdownHooks();
