@@ -5,6 +5,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { NewUserInput, JwtSigningPayload } from './auth.types';
+import { BadRequestException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 
 describe('AuthService (TDD)', () => {
   let service: AuthService;
@@ -278,5 +280,97 @@ describe('AuthService.requestEmailVerification', () => {
 
     await expect(service.requestEmailVerification('nope@test.com')).resolves.toBeUndefined();
     expect(notifications.sendEmailVerification).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.resetPassword', () => {
+  const tokenClaro = 'a'.repeat(64);
+  const hashDe = (t: string) => require('node:crypto').createHash('sha256').update(t).digest('hex');
+
+  function makeService(tokenRow: unknown) {
+    const tx = {
+      user: { update: jest.fn().mockResolvedValue({}) },
+      passwordResetToken: {
+        update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+    const prisma = {
+      passwordResetToken: { findUnique: jest.fn().mockResolvedValue(tokenRow) },
+      $transaction: jest.fn(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx)),
+    } as unknown as import('../prisma.service').PrismaService;
+    const service = new AuthService(
+      prisma,
+      {} as import('@nestjs/jwt').JwtService,
+      {
+        sendPasswordReset: jest.fn(),
+      } as unknown as import('../notifications/notifications.service').NotificationsService,
+      { get: jest.fn() } as unknown as import('@nestjs/config').ConfigService,
+    );
+    return { service, prisma, tx };
+  }
+
+  it('token válido: troca senha (bcrypt), marca usedAt e invalida demais tokens', async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const { service, prisma, tx } = makeService({
+      id: 'tok-1',
+      userId: 42,
+      tokenHash: hashDe(tokenClaro),
+      expiresAt: future,
+      usedAt: null,
+    });
+
+    await service.resetPassword(tokenClaro, 'novasenha');
+
+    expect(prisma.passwordResetToken.findUnique).toHaveBeenCalledWith({
+      where: { tokenHash: hashDe(tokenClaro) },
+    });
+    const updateArgs = (tx.user.update as jest.Mock).mock.calls[0][0];
+    expect(updateArgs.where).toEqual({ id: 42 });
+    expect(await bcrypt.compare('novasenha', updateArgs.data.password)).toBe(true);
+    expect(tx.passwordResetToken.update).toHaveBeenCalledWith({
+      where: { id: 'tok-1' },
+      data: { usedAt: expect.any(Date) },
+    });
+    expect(tx.passwordResetToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 42, usedAt: null, id: { not: 'tok-1' } },
+      data: { usedAt: expect.any(Date) },
+    });
+  });
+
+  it('token inexistente: BadRequestException, sem transação', async () => {
+    const { service, prisma } = makeService(null);
+    await expect(service.resetPassword(tokenClaro, 'x123456')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('token expirado: BadRequestException', async () => {
+    const past = new Date(Date.now() - 1000);
+    const { service } = makeService({
+      id: 'tok-1',
+      userId: 42,
+      tokenHash: hashDe(tokenClaro),
+      expiresAt: past,
+      usedAt: null,
+    });
+    await expect(service.resetPassword(tokenClaro, 'x123456')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('token já usado: BadRequestException', async () => {
+    const future = new Date(Date.now() + 1000);
+    const { service } = makeService({
+      id: 'tok-1',
+      userId: 42,
+      tokenHash: hashDe(tokenClaro),
+      expiresAt: future,
+      usedAt: new Date(),
+    });
+    await expect(service.resetPassword(tokenClaro, 'x123456')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });
