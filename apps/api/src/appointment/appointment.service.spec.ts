@@ -332,4 +332,103 @@ describe('AppointmentService', () => {
       expect(result.status).toBe('CANCELLED');
     });
   });
+
+  describe('reschedule', () => {
+    const future = () => new Date(Date.now() + 72 * 60 * 60 * 1000);
+    const newDate = () => new Date(Date.now() + 96 * 60 * 60 * 1000);
+
+    it('lança NotFoundException quando a consulta não existe', async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(service.reschedule(999, 1, 'PATIENT', newDate())).rejects.toThrow(
+        'Consulta não encontrada',
+      );
+    });
+
+    it('paciente não reagenda consulta de outro paciente (ForbiddenException)', async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        patientId: 7,
+        doctorId: 2,
+        date: future(),
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+        paymentId: 'pay_1',
+        price: 150,
+        consultationModelId: null,
+      });
+      await expect(service.reschedule(1, 1, 'PATIENT', newDate())).rejects.toThrow(
+        'Você não pode reagendar esta consulta',
+      );
+    });
+
+    it('aborta com ConflictException quando o novo slot já está ocupado', async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        patientId: 1,
+        doctorId: 2,
+        date: future(),
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+        paymentId: 'pay_1',
+        price: 150,
+        consultationModelId: null,
+      });
+      jest.spyOn(service, 'findOverlappingForDoctor').mockResolvedValue(true);
+      await expect(service.reschedule(1, 1, 'PATIENT', newDate())).rejects.toThrow(
+        'Este horário já está reservado para o médico',
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('cancela a antiga (zerando paymentId) e cria a nova no mesmo paymentId, em transação', async () => {
+      const target = newDate();
+      const old = {
+        id: 1,
+        patientId: 1,
+        doctorId: 2,
+        date: future(),
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+        paymentId: 'pay_1',
+        price: 150,
+        consultationModelId: null,
+      };
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(old);
+      jest.spyOn(service, 'findOverlappingForDoctor').mockResolvedValue(false);
+
+      const txUpdate = jest
+        .fn()
+        .mockResolvedValue({ ...old, status: 'CANCELLED', paymentId: null });
+      const txCreate = jest.fn().mockResolvedValue({ id: 2, date: target, status: 'CONFIRMED' });
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
+        cb({ appointment: { update: txUpdate, create: txCreate, findUnique: jest.fn() } }),
+      );
+
+      const result = await service.reschedule(1, 1, 'PATIENT', target);
+
+      expect(txUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: expect.any(Date),
+          cancellationReason: 'RESCHEDULED',
+          cancelledBy: 'PATIENT',
+          paymentId: null,
+        },
+      });
+      expect(txCreate).toHaveBeenCalledWith({
+        data: {
+          patientId: 1,
+          doctorId: 2,
+          date: target,
+          status: 'CONFIRMED',
+          paymentId: 'pay_1',
+          consultationModelId: null,
+          durationMinutes: 60,
+          price: 150,
+        },
+      });
+      expect(result.id).toBe(2);
+    });
+  });
 });
