@@ -16,6 +16,7 @@ interface OutboxPayload {
 @Injectable()
 export class EmailOutboxWorker {
   private readonly logger = new Logger(EmailOutboxWorker.name);
+  private isRunning = false;
 
   constructor(
     private readonly outbox: EmailOutboxRepository,
@@ -24,9 +25,18 @@ export class EmailOutboxWorker {
 
   @Cron('* * * * *')
   async processOnce(): Promise<void> {
-    const rows = await this.outbox.findRetryable({ maxAttempts: MAX_ATTEMPTS, now: new Date() });
-    for (const row of rows) {
-      await this.deliverRow(row);
+    if (this.isRunning) {
+      this.logger.warn('Tick anterior ainda em execução — pulando este ciclo.');
+      return;
+    }
+    this.isRunning = true;
+    try {
+      const rows = await this.outbox.findRetryable({ maxAttempts: MAX_ATTEMPTS, now: new Date() });
+      for (const row of rows) {
+        await this.deliverRow(row);
+      }
+    } finally {
+      this.isRunning = false;
     }
   }
 

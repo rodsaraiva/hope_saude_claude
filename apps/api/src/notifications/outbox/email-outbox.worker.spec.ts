@@ -106,4 +106,30 @@ describe('EmailOutboxWorker', () => {
     expect(provider.send).not.toHaveBeenCalled();
     expect(repo.markFailed).toHaveBeenCalledWith('x', expect.stringMatching(/tag/i));
   });
+
+  it('guarda de reentrância: tick sobreposto não reprocessa (findRetryable chamado 1x)', async () => {
+    let resolveFind: (rows: OutboxRow[]) => void = () => {};
+    const findGate = new Promise<OutboxRow[]>((resolve) => {
+      resolveFind = resolve;
+    });
+    const repo = {
+      findRetryable: jest.fn().mockReturnValueOnce(findGate),
+      markSent: jest.fn().mockResolvedValue(undefined),
+      markFailed: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<EmailOutboxRepository>;
+    const provider = makeProvider();
+    const worker = new EmailOutboxWorker(repo, provider);
+
+    // Primeira execução fica "presa" aguardando findRetryable resolver
+    const first = worker.processOnce();
+    // Segunda execução ocorre enquanto a primeira ainda roda → deve ser no-op
+    await worker.processOnce();
+
+    expect(repo.findRetryable).toHaveBeenCalledTimes(1);
+
+    // Libera a primeira execução e garante que conclui sem erro
+    resolveFind([]);
+    await first;
+    expect(repo.findRetryable).toHaveBeenCalledTimes(1);
+  });
 });
