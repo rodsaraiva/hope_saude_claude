@@ -74,6 +74,9 @@ model Appointment {
   date                DateTime
   status              String   @default("CONFIRMED") // CONFIRMED ao persistir; COMPLETED, CANCELLED em fluxos futuros
   paymentId           String?  @unique
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  cancelledBy         String?  // 'PATIENT' | 'DOCTOR'
   consultationModelId Int?
   durationMinutes     Int      @default(60)
   price               Float    @default(150.0)
@@ -83,7 +86,10 @@ model Appointment {
   medicalRecord MedicalRecord?
   prescriptions Prescription[]
 
-  @@unique([doctorId, date])
+  // Unicidade de slot é um índice UNIQUE PARCIAL (WHERE status <> 'CANCELLED'),
+  // criado à mão na migration add_appointment_cancellation_partial_unique —
+  // Prisma não expressa índices parciais. NÃO recriar @@unique([doctorId,date]) aqui
+  // (bloquearia re-book de slot cancelado). Preservar o índice parcial em migrations futuras.
   @@index([doctorId, date])
   @@index([patientId, date])
   @@index([date])

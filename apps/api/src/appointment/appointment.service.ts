@@ -1,7 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { intervalsOverlap } from '../availability/weekly-availability';
+
+/** Antecedência mínima para o PACIENTE cancelar (médico não tem janela). */
+const PATIENT_CANCEL_MIN_LEAD_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class AppointmentService {
@@ -145,6 +154,7 @@ export class AppointmentService {
       where: {
         doctorId,
         date: { gte: from, lte: to },
+        status: { not: 'CANCELLED' },
       },
       orderBy: { date: 'asc' },
     });
@@ -192,5 +202,112 @@ export class AppointmentService {
         endMs: r.date.getTime() + (r.durationMinutes || 60) * 60 * 1000,
       }),
     );
+  }
+
+  /**
+   * Cancela a consulta. Paciente só cancela a própria e até 24h antes;
+   * médico cancela qualquer uma da própria agenda, sem janela. Idempotente:
+   * recancelar uma consulta já CANCELLED é no-op. A transição roda em transação;
+   * marcar CANCELLED libera o slot (queries de range filtram canceladas; índice
+   * unique de slot é parcial e ignora CANCELLED).
+   */
+  async cancel(appointmentId: number, userId: number, role: 'PATIENT' | 'DOCTOR', reason?: string) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException('Consulta não encontrada');
+    }
+
+    const isOwner =
+      role === 'PATIENT' ? appointment.patientId === userId : appointment.doctorId === userId;
+    if (!isOwner) {
+      throw new ForbiddenException('Você não pode cancelar esta consulta');
+    }
+
+    if (appointment.status === 'CANCELLED') {
+      return appointment;
+    }
+
+    if (role === 'PATIENT') {
+      const leadMs = appointment.date.getTime() - Date.now();
+      if (leadMs < PATIENT_CANCEL_MIN_LEAD_MS) {
+        throw new BadRequestException('Cancelamento permitido até 24h antes da consulta');
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) =>
+      tx.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          cancellationReason: reason ?? null,
+          cancelledBy: role,
+        },
+      }),
+    );
+  }
+
+  /**
+   * Reagenda = cancela a consulta atual e cria uma nova no novo horário,
+   * reaproveitando o mesmo paymentId (mesma cobrança Asaas, sem novo checkout).
+   * Valida ownership e disponibilidade do novo slot ANTES de qualquer write.
+   * Como paymentId é @unique, a antiga tem o paymentId zerado ao ser cancelada
+   * e a nova nasce com ele (o pagamento "migra" para a consulta ativa).
+   * Reembolso Asaas não é disparado no MVP.
+   */
+  async reschedule(
+    appointmentId: number,
+    userId: number,
+    role: 'PATIENT' | 'DOCTOR',
+    newDate: Date,
+  ) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException('Consulta não encontrada');
+    }
+
+    const isOwner =
+      role === 'PATIENT' ? appointment.patientId === userId : appointment.doctorId === userId;
+    if (!isOwner) {
+      throw new ForbiddenException('Você não pode reagendar esta consulta');
+    }
+
+    const overlapping = await this.findOverlappingForDoctor(
+      appointment.doctorId,
+      newDate,
+      appointment.durationMinutes,
+    );
+    if (overlapping) {
+      throw new ConflictException('Este horário já está reservado para o médico');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          cancellationReason: 'RESCHEDULED',
+          cancelledBy: role,
+          paymentId: null,
+        },
+      });
+      return tx.appointment.create({
+        data: {
+          patientId: appointment.patientId,
+          doctorId: appointment.doctorId,
+          date: newDate,
+          status: 'CONFIRMED',
+          paymentId: appointment.paymentId,
+          consultationModelId: appointment.consultationModelId,
+          durationMinutes: appointment.durationMinutes,
+          price: appointment.price,
+        },
+      });
+    });
   }
 }

@@ -17,6 +17,14 @@ export async function fetchAppointmentsMe(): Promise<unknown> {
   return api.get('/appointments/me');
 }
 
+export async function cancelAppointment(id: number, reason?: string): Promise<unknown> {
+  return api.post(`/appointments/${id}/cancel`, { reason });
+}
+
+export async function rescheduleAppointment(id: number, newDate: string): Promise<unknown> {
+  return api.post(`/appointments/${id}/reschedule`, { newDate });
+}
+
 export async function saveDoctorAvailability(availabilityJson: string): Promise<unknown> {
   return api.post('/profile/doctor/availability', { availability: availabilityJson });
 }
