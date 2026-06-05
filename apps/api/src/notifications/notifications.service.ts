@@ -1,9 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { EmailOutboxRepository } from './outbox/email-outbox.repository';
 import { MAIL_PROVIDER, MailProvider } from './providers/mail-provider.interface';
-import { renderTemplate } from './templates/renderer';
-import { PasswordResetEmail } from './templates/password-reset';
-import { EmailVerificationEmail } from './templates/email-verification';
 
 export interface SendPasswordResetParams {
   to: string;
@@ -19,72 +16,43 @@ export interface SendEmailVerificationParams {
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger = new Logger(NotificationsService.name);
-
   constructor(
     private readonly outbox: EmailOutboxRepository,
     @Inject(MAIL_PROVIDER) private readonly provider: MailProvider,
   ) {}
 
   async sendPasswordReset(params: SendPasswordResetParams): Promise<void> {
-    const subject = 'Redefinição de senha — Hope Saúde';
-    const rendered = await renderTemplate(
-      PasswordResetEmail({ userName: params.userName, resetUrl: params.resetUrl }),
-    );
-    await this.deliver({
+    await this.enqueue({
       to: params.to,
-      subject,
+      subject: 'Redefinição de senha — Hope Saúde',
       tag: 'password-reset',
-      html: rendered.html,
-      text: rendered.text,
+      userName: params.userName,
+      url: params.resetUrl,
     });
   }
 
   async sendEmailVerification(params: SendEmailVerificationParams): Promise<void> {
-    const subject = 'Confirme seu email — Hope Saúde';
-    const rendered = await renderTemplate(
-      EmailVerificationEmail({ userName: params.userName, verifyUrl: params.verifyUrl }),
-    );
-    await this.deliver({
+    await this.enqueue({
       to: params.to,
-      subject,
+      subject: 'Confirme seu email — Hope Saúde',
       tag: 'email-verification',
-      html: rendered.html,
-      text: rendered.text,
+      userName: params.userName,
+      url: params.verifyUrl,
     });
   }
 
-  private async deliver(input: {
+  private async enqueue(input: {
     to: string;
     subject: string;
     tag: string;
-    html: string;
-    text: string;
+    userName: string;
+    url: string;
   }): Promise<void> {
-    const outboxId = await this.outbox.createPending({
+    await this.outbox.createPending({
       to: input.to,
       subject: input.subject,
       tag: input.tag,
+      payload: JSON.stringify({ userName: input.userName, url: input.url }),
     });
-
-    try {
-      const result = await this.provider.send({
-        to: input.to,
-        subject: input.subject,
-        htmlBody: input.html,
-        textBody: input.text,
-        tag: input.tag,
-      });
-      await this.outbox.markSent(outboxId, result.providerMessageId);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.error({
-        msg: 'email send failed',
-        outboxId,
-        tag: input.tag,
-        error: message,
-      });
-      await this.outbox.markFailed(outboxId, message);
-    }
   }
 }
