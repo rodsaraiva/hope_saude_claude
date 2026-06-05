@@ -1,5 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+
+/** Antecedência mínima para o PACIENTE cancelar (médico não tem janela). */
+const PATIENT_CANCEL_MIN_LEAD_MS = 24 * 60 * 60 * 1000;
 import { PrismaService } from '../prisma.service';
 import { intervalsOverlap } from '../availability/weekly-availability';
 
@@ -190,6 +198,51 @@ export class AppointmentService {
       intervalsOverlap(candidate, {
         startMs: r.date.getTime(),
         endMs: r.date.getTime() + (r.durationMinutes || 60) * 60 * 1000,
+      }),
+    );
+  }
+
+  /**
+   * Cancela a consulta. Paciente só cancela a própria e até 24h antes;
+   * médico cancela qualquer uma da própria agenda, sem janela. Idempotente:
+   * recancelar uma consulta já CANCELLED é no-op. A transição roda em transação;
+   * marcar CANCELLED libera o slot (queries de range filtram canceladas; índice
+   * unique de slot é parcial e ignora CANCELLED).
+   */
+  async cancel(appointmentId: number, userId: number, role: 'PATIENT' | 'DOCTOR', reason?: string) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException('Consulta não encontrada');
+    }
+
+    const isOwner =
+      role === 'PATIENT' ? appointment.patientId === userId : appointment.doctorId === userId;
+    if (!isOwner) {
+      throw new ForbiddenException('Você não pode cancelar esta consulta');
+    }
+
+    if (appointment.status === 'CANCELLED') {
+      return appointment;
+    }
+
+    if (role === 'PATIENT') {
+      const leadMs = appointment.date.getTime() - Date.now();
+      if (leadMs < PATIENT_CANCEL_MIN_LEAD_MS) {
+        throw new BadRequestException('Cancelamento permitido até 24h antes da consulta');
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) =>
+      tx.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          cancellationReason: reason ?? null,
+          cancelledBy: role,
+        },
       }),
     );
   }

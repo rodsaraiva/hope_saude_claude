@@ -14,7 +14,12 @@ describe('AppointmentService', () => {
         {
           provide: PrismaService,
           useValue: {
-            appointment: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
+            appointment: {
+              create: jest.fn(),
+              findMany: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+            },
             pendingCheckout: {
               create: jest.fn(),
               findMany: jest.fn(),
@@ -199,5 +204,131 @@ describe('AppointmentService', () => {
     const overlap = await service.findOverlappingForDoctor(20, start, 60);
 
     expect(overlap).toBe(false);
+  });
+
+  describe('cancel', () => {
+    const future = () => new Date(Date.now() + 72 * 60 * 60 * 1000); // 72h à frente
+
+    function mockTx(appointment: any) {
+      const txUpdate = jest.fn().mockResolvedValue({ ...appointment, status: 'CANCELLED' });
+      (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) =>
+        cb({ appointment: { findUnique: jest.fn(), update: txUpdate, create: jest.fn() } }),
+      );
+      return { txUpdate };
+    }
+
+    it('lança NotFoundException quando a consulta não existe', async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(null);
+      await expect(service.cancel(999, 1, 'PATIENT', 'desisti')).rejects.toThrow(
+        'Consulta não encontrada',
+      );
+    });
+
+    it('paciente não pode cancelar consulta de outro paciente (ForbiddenException)', async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        patientId: 7,
+        doctorId: 2,
+        date: future(),
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+      });
+      await expect(service.cancel(1, 1, 'PATIENT', 'x')).rejects.toThrow(
+        'Você não pode cancelar esta consulta',
+      );
+    });
+
+    it('médico não pode cancelar consulta fora da própria agenda (ForbiddenException)', async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        patientId: 7,
+        doctorId: 99,
+        date: future(),
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+      });
+      await expect(service.cancel(1, 2, 'DOCTOR', 'x')).rejects.toThrow(
+        'Você não pode cancelar esta consulta',
+      );
+    });
+
+    it('paciente é bloqueado quando faltam menos de 24h (BadRequestException)', async () => {
+      const soon = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        patientId: 1,
+        doctorId: 2,
+        date: soon,
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+      });
+      await expect(service.cancel(1, 1, 'PATIENT', 'x')).rejects.toThrow(
+        'Cancelamento permitido até 24h antes da consulta',
+      );
+    });
+
+    it('médico cancela mesmo com menos de 24h (sem janela de antecedência)', async () => {
+      const soon = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      const appt = {
+        id: 1,
+        patientId: 7,
+        doctorId: 2,
+        date: soon,
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+      };
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(appt);
+      const { txUpdate } = mockTx(appt);
+      const result = await service.cancel(1, 2, 'DOCTOR', 'imprevisto');
+      expect(txUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: expect.any(Date),
+          cancellationReason: 'imprevisto',
+          cancelledBy: 'DOCTOR',
+        },
+      });
+      expect(result.status).toBe('CANCELLED');
+    });
+
+    it('paciente cancela com antecedência suficiente e marca CANCELLED em transação', async () => {
+      const appt = {
+        id: 1,
+        patientId: 1,
+        doctorId: 2,
+        date: future(),
+        status: 'CONFIRMED',
+        durationMinutes: 60,
+      };
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(appt);
+      const { txUpdate } = mockTx(appt);
+      await service.cancel(1, 1, 'PATIENT', 'desisti');
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(txUpdate).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: expect.any(Date),
+          cancellationReason: 'desisti',
+          cancelledBy: 'PATIENT',
+        },
+      });
+    });
+
+    it('é idempotente: cancelar consulta já CANCELLED não escreve de novo', async () => {
+      const appt = {
+        id: 1,
+        patientId: 1,
+        doctorId: 2,
+        date: future(),
+        status: 'CANCELLED',
+        durationMinutes: 60,
+      };
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(appt);
+      const result = await service.cancel(1, 1, 'PATIENT', 'de novo');
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(result.status).toBe('CANCELLED');
+    });
   });
 });
