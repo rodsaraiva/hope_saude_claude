@@ -6,7 +6,15 @@ import { AuthService } from './auth.service';
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<
-    Pick<AuthService, 'registerAndLogin' | 'validateUser' | 'login' | 'getPublicUserById'>
+    Pick<
+      AuthService,
+      | 'registerAndLogin'
+      | 'validateUser'
+      | 'login'
+      | 'getPublicUserById'
+      | 'resetPassword'
+      | 'confirmEmailVerification'
+    >
   >;
 
   beforeEach(async () => {
@@ -20,6 +28,8 @@ describe('AuthController', () => {
             validateUser: jest.fn(),
             login: jest.fn(),
             getPublicUserById: jest.fn(),
+            resetPassword: jest.fn(),
+            confirmEmailVerification: jest.fn(),
           },
         },
       ],
@@ -90,6 +100,24 @@ describe('AuthController', () => {
       authService.getPublicUserById.mockResolvedValue(null);
 
       await expect(controller.me({ user: { userId: 999 } })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('delega ao service e devolve void', async () => {
+      authService.resetPassword.mockResolvedValue(undefined);
+      const result = await controller.resetPassword({ token: 'tk', newPassword: 'novasenha' });
+      expect(authService.resetPassword).toHaveBeenCalledWith('tk', 'novasenha');
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('delega ao service confirmEmailVerification', async () => {
+      authService.confirmEmailVerification.mockResolvedValue(undefined);
+      const result = await controller.verifyEmail({ token: 'tk' });
+      expect(authService.confirmEmailVerification).toHaveBeenCalledWith('tk');
+      expect(result).toBeUndefined();
     });
   });
 

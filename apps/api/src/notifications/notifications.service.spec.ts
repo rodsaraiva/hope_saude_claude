@@ -2,7 +2,7 @@ import { NotificationsService } from './notifications.service';
 import { EmailOutboxRepository } from './outbox/email-outbox.repository';
 import type { MailProvider } from './providers/mail-provider.interface';
 
-describe('NotificationsService', () => {
+describe('NotificationsService (apenas enfileira PENDING)', () => {
   const makeRepo = () =>
     ({
       createPending: jest.fn().mockResolvedValue('outbox-1'),
@@ -10,69 +10,43 @@ describe('NotificationsService', () => {
       markFailed: jest.fn().mockResolvedValue(undefined),
     }) as unknown as jest.Mocked<EmailOutboxRepository>;
 
-  const makeProvider = (impl?: Partial<MailProvider>): jest.Mocked<MailProvider> =>
+  const makeProvider = (): jest.Mocked<MailProvider> =>
     ({
       send: jest.fn().mockResolvedValue({ providerMessageId: 'pm-1' }),
-      ...impl,
     }) as unknown as jest.Mocked<MailProvider>;
 
   function makeService(repo = makeRepo(), provider = makeProvider()) {
-    return {
-      service: new NotificationsService(repo, provider),
-      repo,
-      provider,
-    };
+    return { service: new NotificationsService(repo, provider), repo, provider };
   }
 
   describe('sendPasswordReset', () => {
-    it('cria outbox, envia e marca SENT', async () => {
+    it('grava PENDING com payload e NÃO envia inline', async () => {
       const { service, repo, provider } = makeService();
 
       await service.sendPasswordReset({
         to: 'maria@test.com',
         userName: 'Maria',
-        resetUrl: 'https://app.test/reset?t=abc',
+        resetUrl: 'https://app.test/reset-password?token=abc',
       });
 
       expect(repo.createPending).toHaveBeenCalledWith({
         to: 'maria@test.com',
         subject: expect.stringMatching(/senha/i),
         tag: 'password-reset',
-      });
-      expect(provider.send).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: 'maria@test.com',
-          tag: 'password-reset',
-          htmlBody: expect.stringContaining('Maria'),
+        payload: JSON.stringify({
+          userName: 'Maria',
+          url: 'https://app.test/reset-password?token=abc',
         }),
-      );
-      expect(repo.markSent).toHaveBeenCalledWith('outbox-1', 'pm-1');
+      });
+      expect(provider.send).not.toHaveBeenCalled();
+      expect(repo.markSent).not.toHaveBeenCalled();
       expect(repo.markFailed).not.toHaveBeenCalled();
     });
 
-    it('quando provider falha: marca FAILED e não relança', async () => {
-      const provider = makeProvider({
-        send: jest.fn().mockRejectedValue(new Error('postmark down')),
-      });
-      const { service, repo } = makeService(undefined, provider);
-
-      await expect(
-        service.sendPasswordReset({
-          to: 'a@b.com',
-          userName: 'A',
-          resetUrl: 'https://x',
-        }),
-      ).resolves.toBeUndefined();
-
-      expect(repo.markFailed).toHaveBeenCalledWith('outbox-1', 'postmark down');
-      expect(repo.markSent).not.toHaveBeenCalled();
-    });
-
-    it('quando createPending falha: propaga e não chama provider', async () => {
+    it('propaga erro de createPending (sem envio)', async () => {
       const repo = makeRepo();
       (repo.createPending as jest.Mock).mockRejectedValue(new Error('db down'));
-      const provider = makeProvider();
-      const service = new NotificationsService(repo, provider);
+      const { service, provider } = makeService(repo);
 
       await expect(
         service.sendPasswordReset({ to: 'a@b.com', userName: 'a', resetUrl: 'u' }),
@@ -82,24 +56,25 @@ describe('NotificationsService', () => {
   });
 
   describe('sendEmailVerification', () => {
-    it('cria outbox, envia e marca SENT', async () => {
+    it('grava PENDING com tag email-verification e payload', async () => {
       const { service, repo, provider } = makeService();
 
       await service.sendEmailVerification({
         to: 'joao@test.com',
         userName: 'João',
-        verifyUrl: 'https://app.test/verify?t=xyz',
+        verifyUrl: 'https://app.test/verify-email?token=xyz',
       });
 
       expect(repo.createPending).toHaveBeenCalledWith({
         to: 'joao@test.com',
         subject: expect.stringMatching(/email/i),
         tag: 'email-verification',
+        payload: JSON.stringify({
+          userName: 'João',
+          url: 'https://app.test/verify-email?token=xyz',
+        }),
       });
-      expect(provider.send).toHaveBeenCalledWith(
-        expect.objectContaining({ tag: 'email-verification' }),
-      );
-      expect(repo.markSent).toHaveBeenCalled();
+      expect(provider.send).not.toHaveBeenCalled();
     });
   });
 });

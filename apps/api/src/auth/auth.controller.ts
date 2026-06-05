@@ -21,6 +21,8 @@ import { LoginDto } from './dto/login.dto';
 import { AuthenticatedRequest } from './authenticated-request';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -59,6 +61,22 @@ export class AuthController {
   @Post('verify-email/request')
   async requestEmailVerification(@Body() body: RequestEmailVerificationDto): Promise<void> {
     await this.authService.requestEmailVerification(body.email);
+  }
+
+  @ApiOperation({ summary: 'Redefine a senha a partir do token recebido por e-mail' })
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('reset-password')
+  async resetPassword(@Body() body: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(body.token, body.newPassword);
+  }
+
+  @ApiOperation({ summary: 'Confirma o e-mail a partir do token recebido' })
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('verify-email')
+  async verifyEmail(@Body() body: ConfirmEmailVerificationDto): Promise<void> {
+    await this.authService.confirmEmailVerification(body.token);
   }
 
   /** Conta básica (nome, e-mail, papel) — não exige DoctorProfile/PatientProfile. */

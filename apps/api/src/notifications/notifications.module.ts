@@ -5,6 +5,7 @@ import { createTransport } from 'nodemailer';
 import { PrismaService } from '../prisma.service';
 import { NotificationsService } from './notifications.service';
 import { EmailOutboxRepository } from './outbox/email-outbox.repository';
+import { EmailOutboxWorker } from './outbox/email-outbox.worker';
 import { MAIL_PROVIDER } from './providers/mail-provider.interface';
 import { PostmarkMailProvider } from './providers/postmark.provider';
 import { SmtpMailProvider } from './providers/smtp.provider';
@@ -15,6 +16,7 @@ import { SmtpMailProvider } from './providers/smtp.provider';
     PrismaService,
     EmailOutboxRepository,
     NotificationsService,
+    EmailOutboxWorker,
     {
       provide: MAIL_PROVIDER,
       inject: [ConfigService],

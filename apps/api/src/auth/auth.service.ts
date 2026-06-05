@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomBytes, createHash } from 'node:crypto';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -121,6 +121,33 @@ export class AuthService {
     });
   }
 
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const record = await this.prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+
+    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('Token inválido ou expirado');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const usedAt = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: record.userId },
+        data: { password: hashedPassword },
+      });
+      await tx.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt },
+      });
+      await tx.passwordResetToken.updateMany({
+        where: { userId: record.userId, usedAt: null, id: { not: record.id } },
+        data: { usedAt },
+      });
+    });
+  }
+
   async requestEmailVerification(email: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -142,6 +169,27 @@ export class AuthService {
       to: user.email,
       userName: user.name,
       verifyUrl,
+    });
+  }
+
+  async confirmEmailVerification(token: string): Promise<void> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const record = await this.prisma.emailVerificationToken.findUnique({ where: { tokenHash } });
+
+    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('Token inválido ou expirado');
+    }
+
+    const usedAt = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.emailVerificationToken.update({
+        where: { id: record.id },
+        data: { usedAt },
+      });
+      await tx.emailVerificationToken.updateMany({
+        where: { userId: record.userId, usedAt: null, id: { not: record.id } },
+        data: { usedAt },
+      });
     });
   }
 }
