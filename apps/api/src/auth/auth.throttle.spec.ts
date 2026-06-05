@@ -24,4 +24,12 @@ describe('AuthController — rate limiting', () => {
   it('POST /auth/login tem @Throttle aplicado', () => {
     expect(getThrottleMetadata('login')).toBeDefined();
   });
+
+  it('POST /auth/reset-password tem @Throttle aplicado', () => {
+    expect(getThrottleMetadata('resetPassword')).toBeDefined();
+  });
+
+  it('POST /auth/verify-email tem @Throttle aplicado', () => {
+    expect(getThrottleMetadata('verifyEmail')).toBeDefined();
+  });
 });
