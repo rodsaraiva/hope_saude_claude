@@ -91,7 +91,7 @@ describe('AppointmentService', () => {
     expect(prisma.pendingCheckout.delete).toHaveBeenCalledWith({ where: { id: 5 } });
   });
 
-  it('should list appointments do médico no intervalo de datas', async () => {
+  it('should list appointments do médico no intervalo de datas, excluindo CANCELLED', async () => {
     const from = new Date('2026-04-01T00:00:00.000Z');
     const to = new Date('2026-04-30T23:59:59.999Z');
     await service.findAppointmentsForDoctorInRange(7, from, to);
@@ -99,6 +99,7 @@ describe('AppointmentService', () => {
       where: {
         doctorId: 7,
         date: { gte: from, lte: to },
+        status: { not: 'CANCELLED' },
       },
       orderBy: { date: 'asc' },
     });

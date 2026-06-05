@@ -153,6 +153,7 @@ export class AppointmentService {
       where: {
         doctorId,
         date: { gte: from, lte: to },
+        status: { not: 'CANCELLED' },
       },
       orderBy: { date: 'asc' },
     });
