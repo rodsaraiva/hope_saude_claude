@@ -14,6 +14,7 @@ interface Props {
   upcoming: AppointmentRow[];
   userRole: 'DOCTOR' | 'PATIENT' | string;
   doctorNames: Record<number, string>;
+  onCancel?: (id: number) => void;
 }
 
 /**
@@ -21,7 +22,7 @@ interface Props {
  * usuário corrente. PATIENT vê "Com Dr. X", DOCTOR vê "Paciente (ID N)".
  * Botão "Entrar na consulta" aparece apenas quando status=CONFIRMED.
  */
-export function UpcomingAppointmentsCard({ upcoming, userRole, doctorNames }: Props) {
+export function UpcomingAppointmentsCard({ upcoming, userRole, doctorNames, onCancel }: Props) {
   return (
     <section
       className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
@@ -74,12 +75,23 @@ export function UpcomingAppointmentsCard({ upcoming, userRole, doctorNames }: Pr
                 {appt.status}
               </span>
               {appt.status === 'CONFIRMED' && (
-                <a
-                  href={`/video/${appt.id}`}
-                  className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
-                >
-                  Entrar na consulta
-                </a>
+                <>
+                  <a
+                    href={`/video/${appt.id}`}
+                    className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
+                  >
+                    Entrar na consulta
+                  </a>
+                  {onCancel && (
+                    <button
+                      type="button"
+                      onClick={() => onCancel(appt.id)}
+                      className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </li>
